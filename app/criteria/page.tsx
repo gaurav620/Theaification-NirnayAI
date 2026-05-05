@@ -64,7 +64,7 @@ export default function CriteriaPage() {
             </div>
             <h1 className="mt-4 text-3xl font-black tracking-tight text-slate-950 md:text-4xl">Confirm AI extracted tender criteria</h1>
             <p className="mt-2 max-w-2xl text-sm leading-relaxed text-slate-500">
-              Review the source document beside structured criteria before vendor evaluation begins.
+              Review The source document beside structured criteria before vendor evaluation begins.
             </p>
           </div>
           <Button
