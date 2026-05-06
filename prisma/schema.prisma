@@ -1,0 +1,125 @@
+// NirnayAI Database Schema — Neon PostgreSQL via Prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Users (synced from Clerk) ───
+model User {
+  id             String          @id @default(cuid())
+  clerkId        String          @unique
+  email          String          @unique
+  name           String?
+  role           String          @default("evaluator")
+  department     String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  fileWorkspaces FileWorkspace[]
+
+  @@index([clerkId])
+}
+
+// ─── FileWorkspace (Tender Evaluation Container) ───
+model FileWorkspace {
+  id                String              @id @default(cuid())
+  name              String
+  tenderStatus      TenderStatus        @default(AWAITING_DOCS)
+  tenderOverview    Json?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  userId            String
+  user              User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tenderDocs        Document[]
+  bidders           Bidder[]
+  clarificationLogs ClarificationLog[]
+
+  @@index([userId])
+}
+
+enum TenderStatus {
+  AWAITING_DOCS
+  SCANNING
+  CLARIFYING
+  READY
+}
+
+// ─── Documents (Tender and Bidder Docs) ───
+model Document {
+  id              String         @id @default(cuid())
+  name            String
+  size            Int
+  type            String
+  status          DocStatus      @default(QUEUED)
+  uploadedAt      DateTime       @default(now())
+  fileWorkspaceId String?
+  fileWorkspace   FileWorkspace? @relation(fields: [fileWorkspaceId], references: [id], onDelete: Cascade)
+  bidderId        String?
+  bidder          Bidder?        @relation(fields: [bidderId], references: [id], onDelete: Cascade)
+
+  @@index([fileWorkspaceId])
+  @@index([bidderId])
+}
+
+enum DocStatus {
+  QUEUED
+  SCANNING
+  COMPLETE
+  FAILED
+}
+
+// ─── Bidders ───
+model Bidder {
+  id              String         @id @default(cuid())
+  name            String
+  createdAt       DateTime       @default(now())
+  fileWorkspaceId String
+  fileWorkspace   FileWorkspace  @relation(fields: [fileWorkspaceId], references: [id], onDelete: Cascade)
+  docs            Document[]
+  evaluation      Evaluation?
+
+  @@index([fileWorkspaceId])
+}
+
+// ─── Evaluations ───
+model Evaluation {
+  id             String     @id @default(cuid())
+  overallVerdict String
+  createdAt      DateTime   @default(now())
+  bidderId       String     @unique
+  bidder         Bidder     @relation(fields: [bidderId], references: [id], onDelete: Cascade)
+  criteria       Criterion[]
+}
+
+// ─── Criteria (individual evaluation items) ───
+model Criterion {
+  id             String     @id @default(cuid())
+  criterionId    String
+  description    String
+  category       String
+  mandatory      Boolean    @default(false)
+  verdict        String
+  sourceDocument String
+  extractedValue String
+  reason         String
+  confidence     String
+  evaluationId   String
+  evaluation     Evaluation @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+
+  @@index([evaluationId])
+}
+
+// ─── Clarification Logs (AI conversation) ───
+model ClarificationLog {
+  id              String        @id @default(cuid())
+  role            String
+  content         String
+  createdAt       DateTime      @default(now())
+  fileWorkspaceId String
+  fileWorkspace   FileWorkspace @relation(fields: [fileWorkspaceId], references: [id], onDelete: Cascade)
+
+  @@index([fileWorkspaceId])
+}

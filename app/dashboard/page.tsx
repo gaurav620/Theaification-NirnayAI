@@ -6,6 +6,7 @@ import {
   FileText, Plus, Folder, Trash2, X, UploadCloud, CheckCircle2, 
   Clock, AlertCircle, File, Image as ImageIcon, Send, ChevronRight, ChevronDown, ChevronLeft, User, Shield, Eye, Lock
 } from 'lucide-react';
+import { UserButton } from "@clerk/nextjs";
 
 // --- Types ---
 type FileStatus = 'queued' | 'scanning' | 'complete' | 'failed';
@@ -232,7 +233,7 @@ const useBodyScrollLock = (isLocked: boolean) => {
   }, [isLocked]);
 };
 
-const TenderOverviewView = ({ currentFile, data, updateData, setUploadModalConfig }: any) => {
+const TenderOverviewView = ({ currentFile, data, updateData, setUploadModalConfig, setPreviewDoc }: any) => {
   if (!currentFile) return null;
   
   const [chatInput, setChatInput] = useState('');
@@ -262,19 +263,23 @@ const TenderOverviewView = ({ currentFile, data, updateData, setUploadModalConfi
           const clarifyText = await callAnthropicAPI(clarifyPrompt, `Tender documents uploaded: ${filenames}. Ask your first question.`, data.isTestMode);
           const clarifyData = parseJSONResponse<{status: string, message: string}>(clarifyText);
 
+          const aiContent = clarifyData?.message || "Could you provide more context on the mandatory financial criteria for this tender?";
+
+          const { updateWorkspace, addClarification } = await import('@/lib/api-client');
+          await updateWorkspace(currentFile.id, { tenderOverview: overviewData, tenderStatus: 'clarifying' });
+          await addClarification(currentFile.id, 'ai', aiContent);
+
           updateData((prev: any) => ({
+            ...prev,
             files: prev.files.map((f: any) => f.id === currentFile.id ? {
               ...f, 
               tenderOverview: overviewData || f.tenderOverview,
               tenderStatus: 'clarifying',
-              clarificationLog: [{ role: 'ai', content: clarifyData?.message || "Could you provide more context on the mandatory financial criteria for this tender?" }]
+              clarificationLog: [{ role: 'ai', content: aiContent }]
             } : f)
           }));
         } catch (e) {
           console.error("Setup failed", e);
-          updateData((prev: any) => ({
-            files: prev.files.map((f: any) => f.id === currentFile.id ? { ...f, tenderStatus: 'clarifying', clarificationLog: [{ role: 'ai', content: "Could you specify the mandatory eligibility criteria for this tender?" }] } : f)
-          }));
         } finally {
           setIsChatLoading(false);
         }
@@ -288,12 +293,16 @@ const TenderOverviewView = ({ currentFile, data, updateData, setUploadModalConfi
     
     const newHistory = [...currentFile.clarificationLog, { role: 'user' as const, content: msg }];
     updateData((prev: any) => ({
+      ...prev,
       files: prev.files.map((f: any) => f.id === currentFile.id ? { ...f, clarificationLog: newHistory } : f)
     }));
     setChatInput('');
     setIsChatLoading(true);
 
     try {
+      const { addClarification, updateWorkspace } = await import('@/lib/api-client');
+      await addClarification(currentFile.id, 'user', msg);
+
       const conversationContext = newHistory.map(l => `${l.role === 'ai' ? 'AI' : 'User'}: ${l.content}`).join('\n');
       const system = `You are NirnayAI, a strict procurement evaluator. You are verifying tender criteria with the user.
       Based on the conversation context, decide if you have enough information to accurately evaluate bidders against this tender.
@@ -306,10 +315,16 @@ const TenderOverviewView = ({ currentFile, data, updateData, setUploadModalConfi
       const isReady = responseData?.status === 'READY' || responseText.includes('"status": "READY"');
       const aiMessage = responseData?.message || "Understood. The evaluation engine is now ready.";
 
+      await addClarification(currentFile.id, 'ai', aiMessage);
+      if (isReady) {
+        await updateWorkspace(currentFile.id, { tenderStatus: 'ready' });
+      }
+
       updateData((prev: any) => {
         const file = prev.files.find((f: any) => f.id === currentFile.id);
         if (!file) return prev;
         return {
+          ...prev,
           files: prev.files.map((f: any) => f.id === currentFile.id ? {
             ...f,
             tenderStatus: isReady ? 'ready' : 'clarifying',
@@ -320,6 +335,7 @@ const TenderOverviewView = ({ currentFile, data, updateData, setUploadModalConfi
     } catch (e) {
       console.error(e);
       updateData((prev: any) => ({
+        ...prev,
         files: prev.files.map((f: any) => f.id === currentFile.id ? {
           ...f,
           clarificationLog: [...f.clarificationLog, { role: 'ai', content: "Network error processing response. Are there any other mandatory criteria I should know about?" }]
@@ -497,25 +513,26 @@ const BidderView = ({ currentFile, currentBidder, data, updateData, setUploadMod
           
           const responseText = await callAnthropicAPI(systemPrompt, userMsg, data.isTestMode);
           const evalData = parseJSONResponse<EvaluationResult>(responseText);
-
+          
           if (evalData) {
-            updateData((prev: any) => {
-              const updatedFiles = prev.files.map((f: any) => {
-                if (f.id !== currentFile.id) return f;
-                return {
-                  ...f,
-                  bidders: f.bidders.map((b: any) => b.id === currentBidder.id ? { ...b, evaluationResult: evalData } : b)
-                };
-              });
-              return { files: updatedFiles };
-            });
+            const { saveEvaluation } = await import('@/lib/api-client');
+            await saveEvaluation(currentFile.id, currentBidder.id, evalData as any);
+
+            updateData((prev: any) => ({
+              ...prev,
+              files: prev.files.map((f: any) => f.id === currentFile.id ? {
+                ...f,
+                bidders: f.bidders.map((b: any) => b.id === currentBidder.id ? { ...b, evaluationResult: evalData } : b)
+              } : f)
+            }));
           }
-        } catch (e) {
-          console.error("Eval generation failed", e);
+        } catch (error) {
+          console.error("Evaluation failed", error);
         } finally {
           setIsEvalLoading(false);
         }
       };
+      
       fetchEval();
     }
   }, [isComplete, currentBidder?.evaluationResult, currentBidder?.docs, currentBidder?.id, currentBidder?.name, currentFile?.tenderDocs, currentFile?.id, updateData, isEvalLoading, data.isTestMode]);
@@ -847,51 +864,62 @@ const UploadModal = ({ uploadModalConfig, setUploadModalConfig, currentFile, upd
     };
   };
 
-  const handleUpload = () => {
+  const handleUpload = async () => {
     if (selectedFiles.length === 0 || !currentFile) return;
 
-    const newDocs: Doc[] = selectedFiles.map(f => ({
-      id: crypto.randomUUID(),
-      name: f.name,
-      size: f.size,
-      type: f.type || 'application/octet-stream',
-      status: 'queued',
-      uploadedAt: new Date().toISOString()
-    }));
-
-    updateData((prev: any) => {
-      return {
-        files: prev.files.map((f: any) => {
-          if (f.id !== currentFile.id) return f;
-          if (isTender) {
-            return { 
-              ...f, 
-              tenderStatus: 'scanning',
-              tenderDocs: [...f.tenderDocs, ...newDocs] 
-            };
-          } else {
-            return {
-              ...f,
-              bidders: f.bidders.map((b: any) => b.id === uploadModalConfig.targetId ? { ...b, docs: [...b.docs, ...newDocs] } : b)
-            };
-          }
-        })
-      };
-    });
+    const payloadDocs = selectedFiles.map(f => ({ name: f.name, size: f.size, type: f.type || 'application/octet-stream' }));
 
     const configType = uploadModalConfig.type;
     const tId = uploadModalConfig.targetId;
     setUploadModalConfig(null);
 
-    newDocs.forEach((doc, idx) => {
-      setTimeout(() => {
-        updateData((prev: any) => updateDocStatus(prev, currentFile.id, configType, tId, doc.id, 'scanning'));
-      }, 500 + idx * 200);
+    try {
+      const { addTenderDocuments, addBidderDocuments } = await import('@/lib/api-client');
+      let createdDocs;
+      if (isTender) {
+        createdDocs = await addTenderDocuments(currentFile.id, payloadDocs);
+      } else {
+        createdDocs = await addBidderDocuments(currentFile.id, tId, payloadDocs);
+      }
 
-      setTimeout(() => {
-        updateData((prev: any) => updateDocStatus(prev, currentFile.id, configType, tId, doc.id, 'complete'));
-      }, 3000 + idx * 1500); 
-    });
+      updateData((prev: any) => {
+        return {
+          files: prev.files.map((f: any) => {
+            if (f.id !== currentFile.id) return f;
+            if (isTender) {
+              return { 
+                ...f, 
+                tenderStatus: 'scanning',
+                tenderDocs: [...f.tenderDocs, ...createdDocs] 
+              };
+            } else {
+              return {
+                ...f,
+                bidders: f.bidders.map((b: any) => b.id === tId ? { ...b, docs: [...b.docs, ...createdDocs] } : b)
+              };
+            }
+          })
+        };
+      });
+
+      createdDocs.forEach((doc: any, idx: number) => {
+        setTimeout(async () => {
+          updateData((prev: any) => updateDocStatus(prev, currentFile.id, configType, tId, doc.id, 'scanning'));
+          const { updateDocumentStatus } = await import('@/lib/api-client');
+          await updateDocumentStatus(currentFile.id, doc.id, 'scanning');
+        }, 500 + idx * 200);
+
+        setTimeout(async () => {
+          updateData((prev: any) => updateDocStatus(prev, currentFile.id, configType, tId, doc.id, 'complete'));
+          const { updateDocumentStatus } = await import('@/lib/api-client');
+          await updateDocumentStatus(currentFile.id, doc.id, 'complete');
+        }, 3000 + idx * 1500); 
+      });
+
+    } catch (e) {
+      console.error(e);
+      alert('Failed to upload documents');
+    }
   };
 
   return (
@@ -1004,8 +1032,8 @@ const Shell = ({ children, data, updateData, setCurrentFileId, setCurrentBidderI
           <div className="text-xs font-bold tracking-widest uppercase">Evaluator User</div>
           <div className="text-[10px] text-white/70 tracking-widest uppercase">CRPF • MHA</div>
         </div>
-        <div className="w-10 h-10 bg-white/10 flex items-center justify-center border border-white/20">
-          <User className="w-5 h-5" />
+        <div className="flex items-center justify-center ml-2">
+          <UserButton appearance={{ elements: { userButtonAvatarBox: "w-10 h-10 rounded-none border border-white/20" } }} />
         </div>
       </div>
     </header>
@@ -1281,17 +1309,19 @@ export default function NirnayAI() {
   useBodyScrollLock(isCreateFileModalOpen || !!uploadModalConfig || isCreateBidderModalOpen || !!previewDoc);
 
   useEffect(() => {
-    const loadedData = getStorageData();
-    if (loadedData) setData(loadedData);
-    setIsLoaded(true);
+    import('@/lib/api-client').then(api => {
+      api.fetchWorkspaces().then((workspaces: any) => {
+        setData({ files: workspaces, isTestMode: false });
+        setIsLoaded(true);
+      }).catch(e => {
+        console.error("Failed to load workspaces", e);
+        setIsLoaded(true);
+      });
+    });
   }, []);
 
   const updateData = useCallback((updater: (prev: AppData) => AppData) => {
-    setData(prev => {
-      const newData = updater(prev);
-      setStorageData(newData);
-      return newData;
-    });
+    setData(prev => updater(prev));
   }, []);
 
   const currentFile = data.files.find(f => f.id === currentFileId) || null;
@@ -1299,50 +1329,53 @@ export default function NirnayAI() {
 
   if (!isLoaded) return null;
 
-  const handleCreateFile = (name: string) => {
-    const newId = crypto.randomUUID();
-    const newFile: FileWorkspace = {
-      id: newId,
-      name,
-      createdAt: new Date().toISOString(),
-      tenderStatus: 'awaiting_docs',
-      tenderDocs: [],
-      tenderOverview: null,
-      clarificationLog: [],
-      bidders: []
-    };
-    updateData(prev => ({ files: [newFile, ...prev.files] }));
-    setCurrentFileId(newId);
-    setCurrentBidderId(null);
+  const handleCreateFile = async (name: string) => {
     setIsCreateFileModalOpen(false);
+    try {
+      const { createWorkspace } = await import('@/lib/api-client');
+      const newFile = await createWorkspace(name);
+      setData(prev => ({ ...prev, files: [newFile, ...prev.files] }));
+      setCurrentFileId(newFile.id);
+      setCurrentBidderId(null);
+    } catch (e) {
+      console.error(e);
+      alert('Failed to create workspace');
+    }
   };
 
-  const handleDeleteFile = (e: React.MouseEvent, id: string) => {
+  const handleDeleteFile = async (e: React.MouseEvent, id: string) => {
     e.stopPropagation();
     if (confirm("Are you sure you want to delete this file?")) {
-      updateData(prev => ({ files: prev.files.filter(f => f.id !== id) }));
-      if (currentFileId === id) {
-        setCurrentFileId(null);
-        setCurrentBidderId(null);
+      try {
+        const { deleteWorkspace } = await import('@/lib/api-client');
+        await deleteWorkspace(id);
+        setData(prev => ({ ...prev, files: prev.files.filter(f => f.id !== id) }));
+        if (currentFileId === id) {
+          setCurrentFileId(null);
+          setCurrentBidderId(null);
+        }
+      } catch(e) {
+        console.error(e);
+        alert("Failed to delete workspace");
       }
     }
   };
 
-  const handleCreateBidder = (name: string) => {
+  const handleCreateBidder = async (name: string) => {
     if (!currentFileId) return;
-    const newId = crypto.randomUUID();
-    const newBidder: Bidder = {
-      id: newId,
-      name,
-      createdAt: new Date().toISOString(),
-      docs: [],
-      evaluationResult: null
-    };
-    updateData(prev => ({
-      files: prev.files.map(f => f.id === currentFileId ? { ...f, bidders: [...f.bidders, newBidder] } : f)
-    }));
-    setCurrentBidderId(newId);
     setIsCreateBidderModalOpen(false);
+    try {
+      const { createBidder } = await import('@/lib/api-client');
+      const newBidder = await createBidder(currentFileId, name);
+      setData(prev => ({
+        ...prev,
+        files: prev.files.map(f => f.id === currentFileId ? { ...f, bidders: [...f.bidders, newBidder] } : f)
+      }));
+      setCurrentBidderId(newBidder.id);
+    } catch (e) {
+      console.error(e);
+      alert("Failed to create bidder");
+    }
   };
 
   return (
@@ -1400,6 +1433,7 @@ export default function NirnayAI() {
                 data={data} 
                 updateData={updateData} 
                 setUploadModalConfig={setUploadModalConfig}
+                setPreviewDoc={setPreviewDoc}
               />
             )}
             <WorkspaceRightPanel currentFile={currentFile} />
