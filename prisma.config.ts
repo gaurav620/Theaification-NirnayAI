@@ -1,10 +1,4 @@
 import { defineConfig } from "prisma/config";
-import path from "node:path";
-import dotenv from "dotenv";
-
-// Load .env.local first, then .env as fallback
-dotenv.config({ path: path.resolve(__dirname, ".env.local") });
-dotenv.config({ path: path.resolve(__dirname, ".env") });
 
 export default defineConfig({
   schema: "prisma/schema.prisma",
@@ -12,6 +6,8 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: process.env["DATABASE_URL"],
+    // On Vercel: DATABASE_URL is injected as env var directly
+    // Locally: loaded from .env.local by Next.js dev server
+    url: process.env["DATABASE_URL"] ?? "",
   },
 });
