@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ThemeToggle } from "@/components/ui/theme-toggle";
 import AnimatedGridPattern from "@/components/ui/animated-grid-pattern";
 import { cn } from "@/lib/utils";
+import { useUser } from "@clerk/nextjs";
 import {
   FileText,
   Search,
@@ -56,6 +57,9 @@ const TypingText = ({ text }: { text: string }) => {
 
 
 export default function LandingPage() {
+  const { isSignedIn } = useUser();
+  const [openFaq, setOpenFaq] = useState<number | null>(null);
+
   return (
     <div className="min-h-screen bg-white flex flex-col font-sans">
       {/* ─── Ultra-Modern Welcome Bar ─── */}
@@ -115,7 +119,7 @@ export default function LandingPage() {
             </nav>
             <div className="flex items-center gap-4">
               <ThemeToggle />
-              <Link href="/sign-in" className="bg-[#003366] text-white px-8 py-4 text-xs font-black uppercase tracking-[0.2em] hover:bg-[#002244] transition-all shadow-sm">
+              <Link href={isSignedIn ? "/dashboard" : "/sign-in"} className="bg-[#003366] text-white px-8 py-4 text-xs font-black uppercase tracking-[0.2em] hover:bg-[#002244] transition-all shadow-sm">
                 Authorized Access
               </Link>
             </div>
@@ -145,25 +149,25 @@ export default function LandingPage() {
             className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-90"
             style={{ backgroundImage: "url('/images/hero.jpg')" }}
           />
-          {/* Faded White Bottom Edge - Sharper and More Pronounced */}
-          <div className="absolute inset-0 bg-gradient-to-t from-white via-white/40 to-transparent" />
+          {/* Faded White/Dark Blue Bottom Edge */}
+          <div className="absolute inset-0 bg-gradient-to-t from-white dark:from-[#001122] via-white/40 dark:via-[#001122]/60 to-transparent" />
 
-          {/* Light Overlay to ensure navy text legibility on a bright image */}
-          <div className="absolute inset-0 bg-white/10" />
+          {/* Responsive Overlay: Light for bright mode, Dark for dark mode */}
+          <div className="absolute inset-0 bg-white/10 dark:bg-black/50" />
         </div>
 
         <div className="container mx-auto px-6 relative z-10 text-center">
           <div className="max-w-4xl mx-auto">
-            <h2 className="text-5xl md:text-7xl font-black text-[#003366] keep-dark leading-[1.05] mb-10 uppercase drop-shadow-sm">
+            <h2 className="text-5xl md:text-7xl font-black text-[#003366] dark:text-white leading-[1.05] mb-10 uppercase drop-shadow-sm dark:drop-shadow-lg">
               Precision Evaluation <br />
-              <span className="text-[#FF9933] drop-shadow-sm">at Institutional Scale.</span>
+              <span className="text-[#FF9933] drop-shadow-sm dark:drop-shadow-lg">at Institutional Scale.</span>
             </h2>
-            <p className="text-xl text-[#003366] mb-12 leading-relaxed font-bold max-w-3xl mx-auto bg-white/10 backdrop-blur-[2px] p-4 inline-block min-h-[4em] keep-dark">
+            <p className="text-xl text-[#003366] dark:text-white mb-12 leading-relaxed font-bold max-w-3xl mx-auto bg-white/10 dark:bg-black/30 backdrop-blur-[2px] p-6 inline-block min-h-[4em] shadow-sm dark:shadow-2xl">
               <TypingText text="Transforming complex tender technicalities into deterministic outcomes. NirnayAI automates criteria extraction and compliance verification with absolute traceability." />
             </p>
 
             <div className="flex flex-wrap justify-center gap-6">
-              <Link href="/upload" className="bg-[#003366] text-white px-10 py-5 text-xs font-black uppercase tracking-[0.3em] hover:bg-[#002244] transition-all flex items-center gap-3 shadow-sm">
+              <Link href={isSignedIn ? "/dashboard" : "/sign-in"} className="bg-[#003366] text-white px-10 py-5 text-xs font-black uppercase tracking-[0.3em] hover:bg-[#002244] transition-all flex items-center gap-3 shadow-sm">
                 Begin Evaluation <ArrowRight className="h-4 w-4" />
               </Link>
               <Link href="/dashboard" className="bg-white border-2 border-[#003366] text-[#003366] px-10 py-5 text-xs font-black uppercase tracking-[0.3em] hover:bg-[#003366] hover:text-white transition-all shadow-sm">
@@ -174,28 +178,28 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ─── Core Capabilities Grid ─── */}
-      <section className="py-24 bg-white border-b border-gray-100">
+      {/* ─── Core Capabilities ─── */}
+      <section className="py-32 bg-white dark:bg-[#001122] border-b border-gray-100 dark:border-slate-800">
         <div className="container mx-auto px-6">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-0 border border-gray-100">
-            <div className="p-12 border-b md:border-b-0 md:border-r border-gray-100 hover:bg-gray-50 transition-colors group">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-0 border border-gray-100 dark:border-slate-800">
+            <div className="p-12 border-b md:border-b-0 md:border-r border-gray-100 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-900 transition-colors group">
               <Zap className="h-10 w-10 text-[#FF9933] mb-8 group-hover:scale-110 transition-transform" />
-              <h3 className="text-xl font-black text-[#003366] uppercase mb-4">Neural Extraction</h3>
-              <p className="text-sm text-gray-500 font-bold leading-relaxed">
+              <h3 className="text-xl font-black text-[#003366] dark:text-white uppercase mb-4">Neural Extraction</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 font-bold leading-relaxed">
                 Automatically identifies technical eligibility criteria from unstructured 500+ page PDFs with zero manual tagging.
               </p>
             </div>
-            <div className="p-12 border-b md:border-b-0 md:border-r border-gray-100 hover:bg-gray-50 transition-colors group">
+            <div className="p-12 border-b md:border-b-0 md:border-r border-gray-100 dark:border-slate-800 hover:bg-gray-50 dark:hover:bg-slate-900 transition-colors group">
               <Gavel className="h-10 w-10 text-[#FF9933] mb-8 group-hover:scale-110 transition-transform" />
-              <h3 className="text-xl font-black text-[#003366] uppercase mb-4">Rule-Based Scrutiny</h3>
-              <p className="text-sm text-gray-500 font-bold leading-relaxed">
+              <h3 className="text-xl font-black text-[#003366] dark:text-white uppercase mb-4">Rule-Based Scrutiny</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 font-bold leading-relaxed">
                 Cross-references bidder documents against GeM and GFR guidelines to highlight compliance deviations instantly.
               </p>
             </div>
-            <div className="p-12 hover:bg-gray-50 transition-colors group">
+            <div className="p-12 hover:bg-gray-50 dark:hover:bg-slate-900 transition-colors group">
               <CheckCircle className="h-10 w-10 text-[#FF9933] mb-8 group-hover:scale-110 transition-transform" />
-              <h3 className="text-xl font-black text-[#003366] uppercase mb-4">Audit Traceability</h3>
-              <p className="text-sm text-gray-500 font-bold leading-relaxed">
+              <h3 className="text-xl font-black text-[#003366] dark:text-white uppercase mb-4">Audit Traceability</h3>
+              <p className="text-sm text-gray-500 dark:text-gray-400 font-bold leading-relaxed">
                 Every AI result is linked to a specific paragraph in the source document, providing a legally defensible audit trail.
               </p>
             </div>
@@ -203,27 +207,24 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ─── Interface & Resources (Galleries) ─── */}
-      <section className="py-24 bg-[#fcfcfc]">
+      {/* ─── Interface & Resources ─── */}
+      <section className="py-24 bg-[#fcfcfc] dark:bg-[#001122]/50 border-b border-gray-100 dark:border-slate-800">
         <div className="container mx-auto px-6">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-
-            {/* Component Style 1: Photo/Image Gallery */}
-            <div className="gov-card shadow-xl border-gray-200">
+            <div className="gov-card shadow-xl border-gray-200 dark:border-slate-700">
               <div className="gov-card-header notched px-6 py-4">
-                <span className="text-[14px] font-black uppercase tracking-widest">Interface Preview</span>
+                <span className="text-[14px] font-black uppercase tracking-widest text-white">Interface Preview</span>
                 <ImageIcon className="h-5 w-5 text-white/50" />
               </div>
-              <div className="p-0 border-t border-gray-100">
-                <div className="aspect-video bg-gray-100 relative overflow-hidden group cursor-pointer">
+              <div className="p-0 border-t border-gray-100 dark:border-slate-700">
+                <div className="aspect-video bg-gray-100 dark:bg-slate-900 relative overflow-hidden group cursor-pointer">
                   <div className="absolute inset-0 bg-[#003366] opacity-0 group-hover:opacity-10 transition-opacity" />
                   <div className="flex items-center justify-center h-full flex-col gap-4">
-                    <ImageIcon className="h-12 w-12 text-gray-200" />
-                    <p className="text-xs font-black text-gray-300 uppercase tracking-widest">Confidential Platform Screenshot</p>
+                    <ImageIcon className="h-12 w-12 text-gray-200 dark:text-slate-800" />
+                    <p className="text-xs font-black text-gray-300 dark:text-slate-600 uppercase tracking-widest">Confidential Platform Screenshot</p>
                   </div>
-                  {/* Subtle caption bar */}
-                  <div className="absolute bottom-0 inset-x-0 bg-white/95 backdrop-blur-sm border-t border-gray-200 p-4 transform translate-y-full group-hover:translate-y-0 transition-transform">
-                    <div className="text-xs font-black text-[#003366] uppercase tracking-wider flex items-center gap-2">
+                  <div className="absolute bottom-0 inset-x-0 bg-white/95 dark:bg-slate-950/95 backdrop-blur-sm border-t border-gray-200 dark:border-slate-800 p-4 transform translate-y-full group-hover:translate-y-0 transition-transform">
+                    <div className="text-xs font-black text-[#003366] dark:text-blue-300 uppercase tracking-wider flex items-center gap-2">
                       <div className="w-1.5 h-4 bg-[#FF9933]" /> Dashboard: Technical Eligibility Overview
                     </div>
                   </div>
@@ -231,10 +232,9 @@ export default function LandingPage() {
               </div>
             </div>
 
-            {/* Component Style 2: Video/Tutorial */}
-            <div className="gov-card shadow-xl border-gray-200">
+            <div className="gov-card shadow-xl border-gray-200 dark:border-slate-700">
               <div className="gov-card-header notched px-6 py-4">
-                <span className="text-[14px] font-black uppercase tracking-widest">Training Portal</span>
+                <span className="text-[14px] font-black uppercase tracking-widest text-white">Training Portal</span>
                 <div className="flex gap-3">
                   <ChevronLeft className="h-5 w-5 cursor-pointer hover:text-white/70" />
                   <ExternalLink className="h-5 w-5 cursor-pointer hover:text-white/70" />
@@ -250,57 +250,52 @@ export default function LandingPage() {
                     </div>
                     <p className="text-xs font-black text-white/80 uppercase tracking-[0.3em]">Module 01: Evidence Management</p>
                   </div>
-                  {/* Placeholder Background */}
                   <div className="absolute inset-0 bg-[#001a33] opacity-40" />
                 </div>
               </div>
             </div>
-
           </div>
         </div>
       </section>
 
-      {/* ─── The Evaluation Lifecycle (Process Flow) ─── */}
-      <section className="py-24 bg-white border-b border-gray-100">
+      {/* ─── The Evaluation Lifecycle ─── */}
+      <section className="py-24 bg-white dark:bg-[#001122] border-b border-gray-100 dark:border-slate-800">
         <div className="container mx-auto px-6">
           <div className="text-center mb-20">
-            <h2 className="text-3xl font-black text-[#003366] uppercase mb-4">The Evaluation Lifecycle</h2>
-            <p className="text-gray-500 font-bold text-sm uppercase tracking-widest">Standardized Workflow for CRPF Procurement</p>
+            <h2 className="text-3xl font-black text-[#003366] dark:text-white uppercase mb-4">The Evaluation Lifecycle</h2>
+            <p className="text-gray-500 dark:text-white font-bold text-sm uppercase tracking-widest">Standardized Workflow for CRPF Procurement</p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-0 border border-gray-100 shadow-xl">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-0 border border-gray-100 dark:border-slate-800 shadow-xl">
             {[
               { step: "01", title: "Digital Ingestion", desc: "Upload multi-format tender documents (PDF/DOCX). AI automatically sanitizes and indexes metadata.", icon: <Download className="h-6 w-6" /> },
               { step: "02", title: "Criteria Extraction", desc: "Automated parsing of technical eligibility, financial parameters, and performance requirements.", icon: <FileSearch className="h-6 w-6" /> },
               { step: "03", title: "Rule Alignment", desc: "Real-time matching against GeM guidelines and departmental procurement rules.", icon: <Gavel className="h-6 w-6" /> },
               { step: "04", title: "Audit Ready Export", desc: "Generation of comprehensive evaluation reports with full citation and traceability.", icon: <BarChart3 className="h-6 w-6" /> }
             ].map((item, idx) => (
-              <div key={idx} className={`p-10 bg-white hover:bg-gray-50 transition-colors relative group ${idx !== 3 ? 'border-r border-gray-100' : ''}`}>
-                <div className="text-[#003366] mb-8 group-hover:scale-110 transition-transform">{item.icon}</div>
+              <div key={idx} className={`p-10 bg-white dark:bg-[#001a33] hover:bg-gray-50 dark:hover:bg-slate-900 transition-colors relative group ${idx !== 3 ? 'border-r border-gray-100 dark:border-slate-800' : ''}`}>
+                <div className="text-[#003366] dark:text-blue-400 mb-8 group-hover:scale-110 transition-transform">{item.icon}</div>
                 <div className="text-[10px] font-black text-[#FF9933] uppercase tracking-[0.3em] mb-3">Phase {item.step}</div>
-                <h3 className="text-lg font-black text-[#003366] uppercase mb-4">{item.title}</h3>
-                <p className="text-sm text-gray-500 font-medium leading-relaxed">{item.desc}</p>
-                <div className="absolute bottom-0 left-0 w-full h-1 bg-[#003366] transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left" />
+                <h3 className="text-lg font-black text-[#003366] dark:text-white uppercase mb-4">{item.title}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400 font-medium leading-relaxed">{item.desc}</p>
+                <div className="absolute bottom-0 left-0 w-full h-1 bg-[#003366] dark:bg-blue-400 transform scale-x-0 group-hover:scale-x-100 transition-transform origin-left" />
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ─── Explainable Intelligence (Value Prop) ─── */}
+      {/* ─── Explainable Intelligence ─── */}
       <section className="py-32 text-white relative overflow-hidden bg-[#003366]">
-        {/* Background Image Container */}
         <div className="absolute inset-0 z-0">
           <img
             src="/images/why_nirnay_bg.jpg"
             alt=""
             className="w-full h-full object-cover object-center opacity-60"
           />
-          {/* Dark Overlay for readability */}
           <div className="absolute inset-0 bg-gradient-to-r from-[#003366] via-[#003366]/80 to-transparent" />
         </div>
 
-        {/* Subtle decorative elements */}
         <div className="absolute top-0 right-0 w-1/3 h-full bg-white/5 skew-x-[-20deg] translate-x-1/2 z-[1]" />
 
         <div className="container mx-auto px-6 relative z-10">
@@ -309,11 +304,11 @@ export default function LandingPage() {
               <div className="inline-flex items-center gap-3 px-4 py-1.5 bg-white/10 border border-white/20 text-white text-[10px] font-black uppercase tracking-[0.2em] mb-8">
                 <Cpu className="h-4 w-4" /> Why NirnayAI?
               </div>
-              <h2 className="text-5xl font-black uppercase leading-none mb-8">
+              <h2 className="text-5xl font-black text-white dark:text-blue-50 uppercase leading-[1.1] mb-8">
                 Beyond Blackbox AI. <br />
-                <span className="text-blue-400">Total Traceability.</span>
+                <span className="text-blue-400 dark:text-blue-300">Total Traceability.</span>
               </h2>
-              <p className="text-lg text-blue-100 font-medium leading-relaxed mb-10 opacity-80">
+              <p className="text-lg text-blue-100 dark:text-blue-50 font-medium leading-relaxed mb-10 opacity-80 dark:opacity-90">
                 Unlike generic LLMs, NirnayAI uses a deterministic extraction engine. Every extracted criteria is linked to a specific page and paragraph in the source document, ensuring legally defensible evaluations.
               </p>
 
@@ -373,12 +368,103 @@ export default function LandingPage() {
             <p className="text-xs font-bold text-blue-300 uppercase tracking-widest">On-Premise Deployment Available for Strategic Units</p>
           </div>
         </div>
-        {/* Subtle decorative bar */}
         <div className="absolute bottom-0 left-0 h-1 w-full bg-gradient-to-r from-[#FF9933] via-white to-[#138808]" />
       </section>
 
-      {/* ─── FAQ Section (Institutional Style) ─── */}
-      <section className="py-32 bg-white relative overflow-hidden">
+      {/* ─── Team Section ─── */}
+      <section className="py-24 bg-[#fcfcfc] dark:bg-[#001122]/50 border-b border-gray-100 dark:border-slate-800">
+        <div className="container mx-auto px-6">
+          <div className="text-center mb-16">
+            <h2 className="text-3xl font-black text-[#003366] dark:text-white uppercase mb-4">Our Team</h2>
+            <p className="text-gray-500 dark:text-white font-bold text-sm uppercase tracking-widest">The Minds Behind NirnayAI</p>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-8">
+            {[
+              { name: "Priyanshu Nayan", role: "Team Leader", detail: "B.Tech 4th Year", img: "/team/priyanshu.png" },
+              { name: "Gaurav Kumar", role: "Core Developer", detail: "B.Tech 4th Year", img: "/team/gaurav.png" },
+              { name: "Shibam Mitra", role: "Full Stack Developer", detail: "B.Tech 2nd Year", img: "/team/shibam.png" },
+              { name: "Risha Roy", role: "Industry Expert", detail: "Accenture", img: "/team/risha.png" },
+              { name: "Srijoy Bhattacharya", role: "Systems Architect", detail: "Accenture, SAP", img: "/team/srijoy.png" }
+            ].map((member, idx) => (
+              <div key={idx} className="bg-white dark:bg-[#001a33] border border-gray-100 dark:border-slate-800 p-6 text-center hover:shadow-lg transition-all group">
+                <div className="w-32 h-32 mx-auto mb-6 overflow-hidden rounded-none border-2 border-[#003366]/10 dark:border-white/10 group-hover:border-[#FF9933]/50 transition-colors">
+                  <img src={member.img} alt={member.name} className="w-full h-full object-cover grayscale group-hover:grayscale-0 transition-all duration-500" />
+                </div>
+                <h4 className="text-sm font-black text-[#003366] dark:text-blue-100 uppercase tracking-wider mb-1">{member.name}</h4>
+                <p className="text-[10px] font-bold text-[#FF9933] uppercase tracking-widest mb-2">{member.role}</p>
+                <p className="text-[10px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-widest">{member.detail}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ─── Hackathon Section ─── */}
+      <section className="py-24 bg-white dark:bg-[#001122] relative overflow-hidden border-b border-gray-100 dark:border-slate-800">
+        <div className="container mx-auto px-6">
+          <div className="text-center mb-16">
+            <div className="inline-flex items-center gap-3 px-4 py-1.5 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-[#003366] dark:text-blue-300 text-[10px] font-black uppercase tracking-[0.2em] mb-6">
+              Official Submission
+            </div>
+            <h2 className="text-4xl font-black text-[#003366] dark:text-white uppercase leading-tight mb-4">
+              Building for <a href="https://www.hackerearth.com/community/challenges/hackathon/ai-for-bharat-2/" target="_blank" rel="noopener noreferrer" className="text-[#FF9933] hover:underline underline-offset-8 decoration-4 decoration-[#FF9933]/30 transition-all">AI for Bharat</a> Hackathon
+            </h2>
+            <p className="text-sm text-gray-500 dark:text-white font-bold uppercase tracking-widest">A PAN IIT Bangalore Alumni Association & Government of Karnataka Initiative</p>
+          </div>
+
+          <div className="relative w-full mb-16 group overflow-hidden border border-gray-100 dark:border-slate-800 shadow-2xl bg-slate-50 dark:bg-slate-950">
+            <img 
+              src="/images/paniit_banner_2.png" 
+              alt="PAN IIT Banner" 
+              className="w-full h-auto grayscale opacity-90 group-hover:grayscale-0 group-hover:scale-105 transition-all duration-700 block" 
+            />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#003366]/80 via-transparent to-transparent opacity-60 pointer-events-none" />
+            <div className="absolute bottom-6 left-6 md:bottom-10 md:left-10 text-white pointer-events-none">
+              <div className="bg-[#FF9933] px-6 py-2 inline-block text-xs font-black uppercase tracking-[0.2em] mb-4">
+                Grand Finale
+              </div>
+              <p className="text-4xl font-black uppercase tracking-tighter">May 16, 2026</p>
+              <p className="text-xs font-bold uppercase tracking-[0.3em] opacity-80">PAN IIT Summit • Bangalore</p>
+            </div>
+          </div>
+
+          <div className="max-w-4xl mx-auto">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+              <div>
+                <p className="text-sm text-gray-600 dark:text-gray-300 font-medium leading-relaxed mb-6">
+                  NirnayAI is our official submission for the <strong>AI for Bharat</strong> hackathon, co-presented by the <strong>PAN IIT Bangalore Alumni Association</strong> and the <strong>Government of Karnataka</strong>.
+                </p>
+                <p className="text-sm text-gray-600 dark:text-gray-300 font-medium leading-relaxed mb-10">
+                  We are incredibly grateful to the organizers for providing this platform to tackle real-world problem statements from the government and industry. This journey of building an AI-powered solution with measurable impact has been deeply rewarding.
+                </p>
+              </div>
+              <div className="space-y-8">
+                <div className="flex gap-6">
+                  <div className="w-1 h-auto bg-[#FF9933] shrink-0" />
+                  <div>
+                    <h4 className="text-xs font-black text-[#003366] dark:text-blue-300 uppercase tracking-widest mb-2">Real Problem Statements</h4>
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider leading-relaxed">
+                      Participants work on real problem statements, building solutions with the potential for practical deployment and measurable impact.
+                    </p>
+                  </div>
+                </div>
+                <div className="flex gap-6">
+                  <div className="w-1 h-auto bg-[#003366] dark:bg-blue-400 shrink-0" />
+                  <div>
+                    <h4 className="text-xs font-black text-[#003366] dark:text-blue-300 uppercase tracking-widest mb-2">Execution-First Approach</h4>
+                    <p className="text-[11px] text-gray-500 dark:text-gray-400 font-bold uppercase tracking-wider leading-relaxed">
+                      The PAN IIT network brings together leading engineering talent and industry practitioners, reflecting a standard of technical excellence.
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ─── FAQ Section ─── */}
+      <section className="py-32 bg-white dark:bg-[#001a33] relative overflow-hidden border-b border-gray-100 dark:border-slate-800">
         <AnimatedGridPattern
           numSquares={40}
           maxOpacity={0.1}
@@ -393,8 +479,8 @@ export default function LandingPage() {
         />
         <div className="container mx-auto px-6 max-w-4xl">
           <div className="text-center mb-20">
-            <h2 className="text-3xl font-black text-[#003366] uppercase mb-4">Security & Compliance FAQ</h2>
-            <p className="text-gray-500 font-bold text-sm uppercase tracking-widest">Critical Information for Procurement Officers</p>
+            <h2 className="text-3xl font-black text-[#003366] dark:text-white uppercase mb-4">Security & Compliance FAQ</h2>
+            <p className="text-gray-500 dark:text-white font-bold text-sm uppercase tracking-widest">Critical Information for Procurement Officers</p>
           </div>
 
           <div className="space-y-4">
@@ -404,28 +490,48 @@ export default function LandingPage() {
               { q: "Is the system GFR 2024 compliant?", a: "Yes. The platform's evaluation logic is regularly updated to align with General Financial Rules and CVC guidelines." },
               { q: "How are the AI results verified?", a: "Every result provided by NirnayAI comes with a 'Context Link' that opens the source document at the exact location from which the information was extracted." }
             ].map((faq, i) => (
-              <div key={i} className="border border-gray-100 p-8 hover:border-[#003366] transition-all group">
-                <h4 className="text-sm font-black text-[#003366] uppercase tracking-widest mb-4 flex justify-between items-center">
-                  {faq.q}
-                  <ChevronRight className="h-4 w-4 text-[#FF9933] group-hover:translate-x-1 transition-transform" />
-                </h4>
-                <p className="text-sm text-gray-500 font-medium leading-relaxed">
-                  {faq.a}
-                </p>
+              <div 
+                key={i} 
+                className={cn(
+                  "border border-gray-100 dark:border-slate-800 transition-all group cursor-pointer",
+                  openFaq === i ? "border-[#003366] dark:border-blue-500 bg-slate-50 dark:bg-slate-900 shadow-sm" : "hover:border-[#003366] dark:hover:border-blue-500"
+                )}
+                onClick={() => setOpenFaq(openFaq === i ? null : i)}
+              >
+                <div className="p-8">
+                  <h4 className="text-sm font-black text-[#003366] dark:text-blue-300 uppercase tracking-widest flex justify-between items-center">
+                    {faq.q}
+                    <ChevronRight 
+                      className={cn(
+                        "h-4 w-4 text-[#FF9933] transition-transform duration-300",
+                        openFaq === i ? "rotate-90" : ""
+                      )} 
+                    />
+                  </h4>
+                  <div 
+                    className={cn(
+                      "overflow-hidden transition-all duration-500 ease-in-out",
+                      openFaq === i ? "max-h-[200px] mt-6 opacity-100" : "max-h-0 opacity-0"
+                    )}
+                  >
+                    <p className="text-sm text-gray-500 dark:text-gray-400 font-medium leading-relaxed border-t border-gray-100 dark:border-slate-800 pt-4">
+                      {faq.a}
+                    </p>
+                  </div>
+                </div>
               </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ─── Footer (Streamlined) ─── */}
-      <footer className="bg-slate-50 py-20 border-t border-gray-100">
+      {/* ─── Footer ─── */}
+      <footer className="bg-slate-50 dark:bg-slate-950 py-20 border-t border-gray-100 dark:border-slate-900 transition-colors">
         <div className="container mx-auto px-6">
           <div className="flex flex-col md:flex-row justify-between items-start gap-12">
             <div className="max-w-xs">
               <div className="flex items-center gap-4 mb-6">
                 <img src="/logo/Ashok_Emblem_svg.svg" alt="Emblem of India" className="h-12 w-auto grayscale opacity-50 dark:brightness-0 dark:invert" />
-                <img src="/logo/Central_Reserve_Police_Force_emblem.svg" alt="CRPF Emblem" className="h-12 w-auto grayscale opacity-50" />
               </div>
               <p className="text-xs text-gray-400 font-bold leading-relaxed uppercase tracking-wider">
                 The official intelligence portal for automated tender analysis and rule-based evaluation.

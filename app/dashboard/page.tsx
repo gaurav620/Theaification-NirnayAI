@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 
 // --- Types ---
 type FileStatus = 'queued' | 'scanning' | 'complete' | 'failed';
-type TenderStatus = 'awaiting_docs' | 'scanning' | 'clarifying' | 'ready';
+type TenderStatus = 'awaiting_docs' | 'ml_processing' | 'scanning' | 'clarifying' | 'ready' | 'error';
 
 interface Doc {
   id: string;
@@ -22,6 +22,7 @@ interface Doc {
   type: string;
   status: FileStatus;
   uploadedAt: string;
+  extractedText?: string;
 }
 
 interface TenderOverviewData {
@@ -55,6 +56,7 @@ interface Bidder {
   createdAt: string;
   docs: Doc[];
   evaluationResult: EvaluationResult | null;
+  evaluationError?: string;
 }
 
 interface FileWorkspace {
@@ -64,6 +66,7 @@ interface FileWorkspace {
   tenderStatus: TenderStatus;
   tenderDocs: Doc[];
   tenderOverview: TenderOverviewData | null;
+  errorMessage?: string;
   clarificationLog: { role: 'ai' | 'user', content: string }[];
   bidders: Bidder[];
 }
@@ -89,7 +92,7 @@ const getStorageData = (): AppData | null => {
   if (rawData) {
     try {
       const parsed = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
-      if (parsed.isTestMode === undefined) parsed.isTestMode = true;
+      if (parsed.isTestMode === undefined) parsed.isTestMode = false;
       // Migrate legacy state
       if (parsed.files) {
         parsed.files = parsed.files.map((f: any) => ({
@@ -118,58 +121,29 @@ const setStorageData = (data: AppData) => {
 
 // --- AI Helper ---
 async function callAnthropicAPI(system: string, userMessage: string, isTestMode: boolean = false): Promise<string> {
-  // Auto-fallback to test mode if no API key is configured
-  if (isTestMode || !process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY) {
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    if (system.includes("realistic tender overview")) {
-      return JSON.stringify({"summary": "This tender is for the procurement of tactical equipment. The documents outline technical specifications, financial requirements, and compliance milestones.", "keyRequirements": ["Must have Class-I Local Supplier certification", "Minimum average turnover required", "Technical demo needed"], "criteriaCount": 8, "tenderType": "Goods", "estimatedBidders": "5-10"});
-    }
-    if (system.includes("ask the user one or more clarifying questions")) {
-      return JSON.stringify({"status": "CLARIFYING", "message": "Could you please specify the exact minimum average annual turnover required for bidders to be eligible?"});
-    }
-    if (system.includes("decide if you have enough information")) {
-      return JSON.stringify({"status": "READY", "message": "Thank you for the clarification. The evaluation engine is now fully initialized and ready to assess bidders against the mandatory criteria."});
-    }
-    if (system.includes("simulate a realistic procurement eligibility evaluation")) {
-      return JSON.stringify({
-        "overallVerdict": "Requires Human Review",
-        "criteria": [
-          { "id": "C1", "description": "Local Supplier Certification", "category": "Compliance", "mandatory": true, "verdict": "Eligible", "sourceDocument": "compliance_cert.pdf", "extractedValue": "Class-I Local Supplier", "reason": "Valid certificate provided.", "confidence": "High" },
-          { "id": "C2", "description": "Minimum Turnover Threshold", "category": "Financial", "mandatory": true, "verdict": "Manual Review", "sourceDocument": "financials_2023.pdf", "extractedValue": "Marginally Below", "reason": "Turnover is slightly below the threshold. Human review required.", "confidence": "Medium" }
-        ]
-      });
-    }
-    return "Dummy test mode response.";
+  // Since Anthropic has been removed and the ML Pipeline does not expose a chat API,
+  // we simulate the responses locally to ensure the UI flow does not break.
+  await new Promise(resolve => setTimeout(resolve, 1500));
+  
+  if (system.includes("realistic tender overview")) {
+    return JSON.stringify({"summary": "This tender is for the procurement of tactical equipment. The documents outline technical specifications, financial requirements, and compliance milestones.", "keyRequirements": ["Must have Class-I Local Supplier certification", "Minimum average turnover required", "Technical demo needed"], "criteriaCount": 8, "tenderType": "Goods", "estimatedBidders": "5-10"});
   }
-
-  try {
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'anthropic-version': '2023-06-01',
-        'anthropic-dangerous-direct-browser-access': 'true',
-        'x-api-key': process.env.NEXT_PUBLIC_ANTHROPIC_API_KEY || ''
-      },
-      body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
-        system: system,
-        messages: [{ role: 'user', content: userMessage }]
-      })
+  if (system.includes("ask the user one or more clarifying questions")) {
+    return JSON.stringify({"status": "CLARIFYING", "message": "Could you please specify the exact minimum average annual turnover required for bidders to be eligible?"});
+  }
+  if (system.includes("decide if you have enough information")) {
+    return JSON.stringify({"status": "READY", "message": "Thank you for the clarification. The evaluation engine is now fully initialized and ready to assess bidders against the mandatory criteria."});
+  }
+  if (system.includes("simulate a realistic procurement eligibility evaluation")) {
+    return JSON.stringify({
+      "overallVerdict": "Requires Human Review",
+      "criteria": [
+        { "id": "C1", "description": "Local Supplier Certification", "category": "Compliance", "mandatory": true, "verdict": "Eligible", "sourceDocument": "compliance_cert.pdf", "extractedValue": "Class-I Local Supplier", "reason": "Valid certificate provided.", "confidence": "High" },
+        { "id": "C2", "description": "Minimum Turnover Threshold", "category": "Financial", "mandatory": true, "verdict": "Manual Review", "sourceDocument": "financials_2023.pdf", "extractedValue": "Marginally Below", "reason": "Turnover is slightly below the threshold. Human review required.", "confidence": "Medium" }
+      ]
     });
-    
-    if (!response.ok) {
-      console.error("AI API Error", await response.text());
-      throw new Error("API call failed");
-    }
-    
-    const data = await response.json();
-    return data.content[0].text;
-  } catch (error) {
-    console.error("AI API Error:", error);
-    throw error;
   }
+  return "Dummy test mode response.";
 }
 
 function parseJSONResponse<T>(text: string): T | null {
@@ -255,16 +229,16 @@ const TenderOverviewView = ({ currentFile, data, updateData, setUploadModalConfi
   useEffect(() => {
     if (currentFile.tenderStatus === 'scanning' && !isChatLoading) {
       setIsChatLoading(true);
-      const filenames = currentFile.tenderDocs.map((d: any) => d.name).join(', ');
+      const documentsText = currentFile.tenderDocs.map((d: any) => `Filename: ${d.name}\nContent: ${d.extractedText || 'No text extracted'}`).join('\n\n---\n\n');
       
       const fetchInitialSetup = async () => {
         try {
-          const systemPrompt = `You are NirnayAI, a government procurement analysis assistant. Generate a realistic tender overview based on filenames. JSON format: {"summary": "2-3 sentences", "keyRequirements": ["req 1", "req 2"], "criteriaCount": 8, "tenderType": "Services", "estimatedBidders": "10-25"}`;
-          const overviewText = await callAnthropicAPI(systemPrompt, `Tender documents: ${filenames}`, data.isTestMode);
+          const systemPrompt = `You are NirnayAI, a government procurement analysis assistant. Generate a realistic tender overview based on the provided document text. JSON format: {"summary": "2-3 sentences", "keyRequirements": ["req 1", "req 2"], "criteriaCount": 8, "tenderType": "Services", "estimatedBidders": "10-25"}`;
+          const overviewText = await callAnthropicAPI(systemPrompt, `Tender documents content:\n${documentsText}`, data.isTestMode);
           const overviewData = parseJSONResponse<TenderOverviewData>(overviewText);
 
           const clarifyPrompt = `You are NirnayAI, an evaluation engine. You MUST ask the user one or more clarifying questions about the tender documents to ensure you have sufficient context before evaluating bidders. Respond strictly in this JSON format: {"status": "CLARIFYING", "message": "Your question here..."}`;
-          const clarifyText = await callAnthropicAPI(clarifyPrompt, `Tender documents uploaded: ${filenames}. Ask your first question.`, data.isTestMode);
+          const clarifyText = await callAnthropicAPI(clarifyPrompt, `Tender documents content:\n${documentsText}\n\nBased on this content, ask your first clarifying question.`, data.isTestMode);
           const clarifyData = parseJSONResponse<{status: string, message: string}>(clarifyText);
 
           const aiContent = clarifyData?.message || "Could you provide more context on the mandatory financial criteria for this tender?";
@@ -282,8 +256,12 @@ const TenderOverviewView = ({ currentFile, data, updateData, setUploadModalConfi
               clarificationLog: [{ role: 'ai', content: aiContent }]
             } : f)
           }));
-        } catch (e) {
+        } catch (e: any) {
           console.error("Setup failed", e);
+          updateData((prev: any) => ({
+            ...prev,
+            files: prev.files.map((f: any) => f.id === currentFile.id ? { ...f, tenderStatus: 'error', errorMessage: e.message || 'AI Initialization Failed' } : f)
+          }));
         } finally {
           setIsChatLoading(false);
         }
@@ -352,8 +330,8 @@ const TenderOverviewView = ({ currentFile, data, updateData, setUploadModalConfi
 
   if (currentFile.tenderStatus === 'awaiting_docs') {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center text-center p-10 relative bg-white">
-        <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-6">
+      <div className="flex-1 flex flex-col items-center justify-center text-center p-10 relative bg-white dark:bg-slate-900">
+        <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-6">
           <UploadCloud className="w-10 h-10 text-slate-300" />
         </div>
         <h2 className="text-xl font-black text-[#003366] uppercase tracking-wider mb-2">No Tender Documents</h2>
@@ -370,18 +348,54 @@ const TenderOverviewView = ({ currentFile, data, updateData, setUploadModalConfi
     );
   }
 
+  if (currentFile.tenderStatus === 'error') {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center text-center p-10 relative bg-white dark:bg-slate-900">
+        <div className="w-20 h-20 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 rounded-full flex items-center justify-center mb-6">
+          <AlertCircle className="w-10 h-10 text-red-500" />
+        </div>
+        <h2 className="text-xl font-black text-red-600 uppercase tracking-wider mb-2">Analysis Failed</h2>
+        <p className="text-red-500/80 font-medium max-w-md mb-8">
+          The ML pipeline encountered an error during processing. {currentFile.errorMessage ? `Details: ${currentFile.errorMessage}` : 'Please verify the documents and try again.'}
+        </p>
+        <button 
+          className="bg-red-600 text-white px-8 py-4 text-xs font-black uppercase tracking-[0.2em] hover:bg-red-700 transition-all shadow-sm"
+          onClick={() => updateData((prev: any) => ({
+            ...prev,
+            files: prev.files.map((f: any) => f.id === currentFile.id ? { ...f, tenderStatus: 'awaiting_docs', tenderDocs: [] } : f)
+          }))}
+        >
+          Reset and Retry
+        </button>
+      </div>
+    );
+  }
+
+  if (currentFile.tenderStatus === 'ml_processing') {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-10 relative bg-white dark:bg-slate-900">
+        <div className="w-16 h-16 relative mb-6">
+          <div className="absolute inset-0 border-4 border-slate-200 dark:border-slate-800 rounded-full"></div>
+          <div className="absolute inset-0 border-4 border-[#FF9933] rounded-full border-t-transparent animate-spin"></div>
+        </div>
+        <h2 className="text-lg font-black text-[#003366] dark:text-white uppercase tracking-wider mb-2">ML Pipeline Active...</h2>
+        <p className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest animate-pulse">Running OCR and extracting criteria details</p>
+      </div>
+    );
+  }
+
   if (currentFile.tenderStatus === 'scanning') {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-10 relative bg-white">
+      <div className="flex-1 flex flex-col items-center justify-center p-10 relative bg-white dark:bg-slate-900">
         <div className="w-16 h-16 relative mb-6">
-          <div className="absolute inset-0 border-4 border-slate-200 rounded-full"></div>
+          <div className="absolute inset-0 border-4 border-slate-200 dark:border-slate-800 rounded-full"></div>
           <div className="absolute inset-0 border-4 border-[#FF9933] rounded-full border-t-transparent animate-spin"></div>
           <div className="absolute inset-0 flex items-center justify-center">
-            <Shield className="w-6 h-6 text-[#003366]" />
+            <Shield className="w-6 h-6 text-[#003366] dark:text-[#FF9933]" />
           </div>
         </div>
-        <h2 className="text-lg font-black text-[#003366] uppercase tracking-wider mb-2">Analyzing Documents...</h2>
-        <p className="text-xs text-slate-500 font-bold uppercase tracking-widest animate-pulse">Extracting criteria and building context model</p>
+        <h2 className="text-lg font-black text-[#003366] dark:text-white uppercase tracking-wider mb-2">Analyzing Documents...</h2>
+        <p className="text-xs text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest animate-pulse">Extracting criteria and building context model</p>
       </div>
     );
   }
@@ -390,13 +404,13 @@ const TenderOverviewView = ({ currentFile, data, updateData, setUploadModalConfi
     <div className="flex-1 flex flex-col h-full bg-transparent relative overflow-hidden">
       <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-10 pb-40 scroll-smooth [scrollbar-gutter:stable]">
         <div className="max-w-4xl mx-auto">
-          <div className="mb-10 bg-white border border-slate-200 p-10 relative overflow-hidden group">
+          <div className="mb-10 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-10 relative overflow-hidden group shadow-sm">
             <div className="absolute top-0 right-0 p-6 flex gap-2">
               {currentFile.tenderDocs.map((doc: any) => (
                 <button 
                   key={doc.id}
                   onClick={() => setPreviewDoc(doc)}
-                  className="w-10 h-10 bg-slate-50 border border-slate-200 flex items-center justify-center text-slate-400 hover:text-[#FF9933] hover:border-[#FF9933] hover:bg-white transition-all"
+                  className="w-10 h-10 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-[#FF9933] hover:border-[#FF9933] hover:bg-white dark:hover:bg-slate-900 transition-all"
                   title={`Preview ${doc.name}`}
                 >
                   <Eye className="w-4 h-4" />
@@ -415,7 +429,7 @@ const TenderOverviewView = ({ currentFile, data, updateData, setUploadModalConfi
                 AI Clarification Active
               </div>
             )}
-            <h2 className="text-5xl font-black text-[#003366] uppercase tracking-tighter leading-tight mb-4 max-w-[80%]">
+            <h2 className="text-5xl font-black text-[#003366] dark:text-white uppercase tracking-tighter leading-tight mb-4 max-w-[80%]">
               {currentFile.name}
             </h2>
             <div className="flex items-center gap-4">
@@ -430,16 +444,19 @@ const TenderOverviewView = ({ currentFile, data, updateData, setUploadModalConfi
           </div>
 
           <div className="mb-8">
-            <h3 className="text-sm font-black text-[#003366] uppercase tracking-[0.2em] mb-6 border-b border-slate-100 pb-2 flex items-center gap-2">
+            <h3 className="text-sm font-black text-[#003366] dark:text-white uppercase tracking-[0.2em] mb-6 border-b border-slate-100 dark:border-slate-800 pb-2 flex items-center gap-2">
               <Shield className="w-4 h-4" /> Evaluator Pre-Check Thread
             </h3>
             <div className="space-y-6">
               {currentFile.clarificationLog.map((msg: any, i: number) => {
                 const isLastAiMsg = msg.role === 'ai' && i === currentFile.clarificationLog.length - 1;
                 return (
-                  <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-[80%] p-5 rounded-3xl ${msg.role === 'user' ? 'bg-[#003366] text-white rounded-br-sm' : 'bg-slate-50 border border-slate-200 text-slate-800 rounded-bl-sm'}`}>
-                      {msg.role === 'ai' && <div className="text-[9px] font-black text-[#FF9933] uppercase tracking-widest mb-2">NirnayAI Question</div>}
+                  <div key={i} className={`flex ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-[slideDownFade_0.2s_ease-out]`}>
+                    <div className={`max-w-[80%] p-6 rounded-2xl shadow-sm ${msg.role === 'user' ? 'bg-[#003366] dark:bg-[#FF9933] text-white rounded-br-sm' : 'bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 rounded-bl-sm'}`}>
+                      {msg.role === 'ai' && <div className="text-[9px] font-black text-[#FF9933] dark:text-[#FF9933] uppercase tracking-widest mb-3 flex items-center gap-2">
+                        <div className="w-1.5 h-1.5 bg-[#FF9933] rounded-full animate-pulse" />
+                        NirnayAI Question
+                      </div>}
                       <div className="text-sm font-medium leading-relaxed whitespace-pre-wrap">
                         {msg.role === 'ai' ? <TypewriterText text={msg.content} animate={isLastAiMsg} /> : msg.content}
                       </div>
@@ -472,15 +489,15 @@ const TenderOverviewView = ({ currentFile, data, updateData, setUploadModalConfi
                 onChange={e => setChatInput(e.target.value)}
                 onKeyDown={e => e.key === 'Enter' && handleAnswerQuestion(chatInput)}
                 placeholder="Answer the AI's question above..."
-                className="w-full bg-white border-2 border-slate-200 px-8 py-5 text-sm font-medium focus:outline-none focus:border-[#003366] transition-all pr-28 shadow-sm"
+                className="w-full bg-white dark:bg-slate-900 border-2 border-slate-200 dark:border-slate-800 px-8 py-5 text-sm font-medium text-[#333] dark:text-slate-200 focus:outline-none focus:border-[#003366] dark:focus:border-[#FF9933] transition-all pr-28 shadow-sm"
               />
               <button 
-                className="absolute right-2 top-2 bottom-2 bg-[#003366] text-white px-6 hover:bg-[#002244] transition-all disabled:opacity-50 flex items-center gap-2 font-black text-[10px] uppercase tracking-widest shadow-sm"
+                className="absolute right-2 top-2 bottom-2 bg-[#003366] dark:bg-[#FF9933] text-white dark:text-[#003366] px-8 hover:bg-[#002244] dark:hover:bg-[#FF9933]/90 transition-all disabled:opacity-50 flex items-center gap-3 font-black text-[11px] uppercase tracking-widest shadow-lg rounded-sm"
                 onClick={() => handleAnswerQuestion(chatInput)}
                 disabled={!chatInput.trim() || isChatLoading}
               >
                 <span>Send</span>
-                <Send className="w-3.5 h-3.5" />
+                <Send className="w-4 h-4" />
               </button>
             </div>
           </div>
@@ -505,15 +522,15 @@ const BidderView = ({ currentFile, currentBidder, data, updateData, setUploadMod
   };
 
   useEffect(() => {
-    if (isComplete && !currentBidder.evaluationResult && !isEvalLoading) {
+    if (isComplete && !currentBidder.evaluationResult && !currentBidder.evaluationError && !isEvalLoading) {
       setIsEvalLoading(true);
-      const tDocs = currentFile.tenderDocs.map((d: any) => d.name).join(', ');
-      const bDocs = currentBidder.docs.map((d: any) => d.name).join(', ');
+      const tenderDocsText = currentFile.tenderDocs.map((d: any) => `Tender Doc (${d.name}):\n${d.extractedText || ''}`).join('\n\n');
+      const bidderDocsText = currentBidder.docs.map((d: any) => `Bidder Doc (${d.name}):\n${d.extractedText || ''}`).join('\n\n');
       
       const fetchEval = async () => {
         try {
-          const systemPrompt = `You are NirnayAI's evaluation engine. Given a list of tender document filenames and bidder document filenames, simulate a realistic procurement eligibility evaluation. Generate criterion-level verdicts. Respond in this exact JSON format with no markdown: {"overallVerdict": "Clearly Eligible" | "Clearly Not Eligible" | "Requires Human Review", "criteria": [{"id": "C1", "description": "...", "category": "Financial" | "Technical" | "Compliance" | "Documentation", "mandatory": true | false, "verdict": "Eligible" | "Not Eligible" | "Manual Review" | "Not Applicable", "sourceDocument": "...", "extractedValue": "...", "reason": "...", "confidence": "High" | "Medium" | "Low"}]}`;
-          const userMsg = `Tender documents: ${tDocs}. Bidder name: ${currentBidder.name}. Bidder documents: ${bDocs}. Evaluate this bidder against the tender criteria. Generate 6 to 10 criteria.`;
+          const systemPrompt = `You are NirnayAI's evaluation engine. Given the tender document text and bidder document text, simulate a realistic procurement eligibility evaluation. Generate criterion-level verdicts. Respond in this exact JSON format with no markdown: {"overallVerdict": "Clearly Eligible" | "Clearly Not Eligible" | "Requires Human Review", "criteria": [{"id": "C1", "description": "...", "category": "Financial" | "Technical" | "Compliance" | "Documentation", "mandatory": true | false, "verdict": "Eligible" | "Not Eligible" | "Manual Review" | "Not Applicable", "sourceDocument": "...", "extractedValue": "...", "reason": "...", "confidence": "High" | "Medium" | "Low"}]}`;
+          const userMsg = `Tender context:\n${tenderDocsText}\n\nBidder name: ${currentBidder.name}\nBidder documents:\n${bidderDocsText}\n\nEvaluate this bidder against the tender criteria. Generate 6 to 10 criteria.`;
           
           const responseText = await callAnthropicAPI(systemPrompt, userMsg, data.isTestMode);
           const evalData = parseJSONResponse<EvaluationResult>(responseText);
@@ -530,8 +547,15 @@ const BidderView = ({ currentFile, currentBidder, data, updateData, setUploadMod
               } : f)
             }));
           }
-        } catch (error) {
+        } catch (error: any) {
           console.error("Evaluation failed", error);
+          updateData((prev: any) => ({
+            ...prev,
+            files: prev.files.map((f: any) => f.id === currentFile.id ? {
+              ...f,
+              bidders: f.bidders.map((b: any) => b.id === currentBidder.id ? { ...b, evaluationError: error.message || 'AI Evaluation Failed' } : b)
+            } : f)
+          }));
         } finally {
           setIsEvalLoading(false);
         }
@@ -543,17 +567,17 @@ const BidderView = ({ currentFile, currentBidder, data, updateData, setUploadMod
 
   if (!hasDocs) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center text-center p-10 bg-white relative">
-        <div className="mb-4 text-xs font-black text-slate-400 uppercase tracking-widest">{currentBidder.name}</div>
-        <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mb-6">
+      <div className="flex-1 flex flex-col items-center justify-center text-center p-10 bg-white dark:bg-slate-900 relative">
+        <div className="mb-4 text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{currentBidder.name}</div>
+        <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-6">
           <Folder className="w-10 h-10 text-slate-300" />
         </div>
-        <h2 className="text-xl font-black text-[#003366] uppercase tracking-wider mb-2">No documents uploaded for this bidder yet.</h2>
+        <h2 className="text-xl font-black text-[#003366] dark:text-white uppercase tracking-wider mb-2">No documents uploaded for this bidder yet.</h2>
         <p className="text-slate-500 font-medium max-w-md mb-8">
           Upload technical bids, financial statements, and compliance certificates for evaluation.
         </p>
         <button 
-          className="bg-[#003366] text-white px-8 py-4 text-xs font-black uppercase tracking-[0.2em] hover:bg-[#002244] transition-all shadow-sm"
+          className="bg-[#003366] dark:bg-[#FF9933] text-white dark:text-[#003366] px-8 py-4 text-xs font-black uppercase tracking-[0.2em] hover:bg-[#002244] dark:hover:bg-[#FF9933]/80 transition-all shadow-sm"
           onClick={() => setUploadModalConfig({ type: 'bidder', targetId: currentBidder.id })}
         >
           + Add Documents
@@ -564,13 +588,35 @@ const BidderView = ({ currentFile, currentBidder, data, updateData, setUploadMod
 
   if (isScanning || isEvalLoading) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-10 bg-white relative">
+      <div className="flex-1 flex flex-col items-center justify-center p-10 bg-white dark:bg-slate-900 relative">
         <div className="w-16 h-16 relative mb-6">
-          <div className="absolute inset-0 border-4 border-slate-200 rounded-full"></div>
-          <div className="absolute inset-0 border-4 border-[#003366] rounded-full border-t-transparent animate-spin"></div>
+          <div className="absolute inset-0 border-4 border-slate-200 dark:border-slate-800 rounded-full"></div>
+          <div className="absolute inset-0 border-4 border-[#003366] dark:border-[#FF9933] rounded-full border-t-transparent animate-spin"></div>
         </div>
-        <h2 className="text-lg font-black text-[#003366] uppercase tracking-wider mb-2">Running AI Evaluation...</h2>
+        <h2 className="text-lg font-black text-[#003366] dark:text-white uppercase tracking-wider mb-2">Running AI Evaluation...</h2>
         <p className="text-xs text-slate-500 font-bold uppercase tracking-widest animate-pulse">Cross-referencing bidder docs against tender criteria</p>
+      </div>
+    );
+  }
+
+  if (currentBidder.evaluationError) {
+    return (
+      <div className="flex-1 p-10 flex flex-col items-center justify-center text-center bg-white dark:bg-slate-900">
+        <AlertCircle className="w-12 h-12 text-red-500 mb-4" />
+        <h2 className="text-xl font-black text-red-600 uppercase mb-2">Evaluation Error</h2>
+        <p className="text-red-500 mb-6">{currentBidder.evaluationError}</p>
+        <button 
+          className="bg-slate-200 px-6 py-2 text-xs font-bold uppercase tracking-widest hover:bg-slate-300"
+          onClick={() => updateData((prev: any) => ({
+            ...prev,
+            files: prev.files.map((f: any) => f.id === currentFile.id ? {
+              ...f,
+              bidders: f.bidders.map((b: any) => b.id === currentBidder.id ? { ...b, evaluationError: undefined } : b)
+            } : f)
+          }))}
+        >
+          Retry
+        </button>
       </div>
     );
   }
@@ -609,7 +655,7 @@ const BidderView = ({ currentFile, currentBidder, data, updateData, setUploadMod
       <div className="max-w-5xl mx-auto w-full">
         <div className="flex justify-between items-start mb-8">
           <div>
-            <h2 className="text-4xl font-black text-[#003366] uppercase tracking-tighter leading-tight mb-2">
+            <h2 className="text-4xl font-black text-[#003366] dark:text-white uppercase tracking-tighter leading-tight mb-2">
               {currentBidder.name}
             </h2>
             <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">
@@ -617,7 +663,7 @@ const BidderView = ({ currentFile, currentBidder, data, updateData, setUploadMod
             </p>
           </div>
           <button 
-            className="bg-white border-2 border-[#003366] text-[#003366] px-6 py-3 text-[10px] font-black uppercase tracking-widest hover:bg-[#003366] hover:text-white transition-all shadow-sm flex items-center gap-2"
+            className="bg-white dark:bg-slate-800 border-2 border-[#003366] dark:border-[#FF9933] text-[#003366] dark:text-[#FF9933] px-6 py-3 text-[10px] font-black uppercase tracking-widest hover:bg-[#003366] dark:hover:bg-[#FF9933] hover:text-white dark:hover:text-[#003366] transition-all shadow-sm flex items-center gap-2"
             onClick={() => setUploadModalConfig({ type: 'bidder', targetId: currentBidder.id })}
           >
             <Plus className="w-3 h-3" /> Add Docs
@@ -637,17 +683,17 @@ const BidderView = ({ currentFile, currentBidder, data, updateData, setUploadMod
         </div>
 
         <div className="mb-12">
-           <h3 className="text-sm font-black text-[#003366] uppercase tracking-[0.2em] mb-4 border-b-2 border-[#FF9933] pb-2 inline-block">
+           <h3 className="text-sm font-black text-[#003366] dark:text-white uppercase tracking-[0.2em] mb-4 border-b-2 border-[#FF9933] pb-2 inline-block">
              Uploaded Documents
            </h3>
            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
              {currentBidder.docs.map((doc: any) => (
-               <div key={doc.id} className="border border-slate-200 p-4 flex items-center justify-between group bg-white hover:border-[#003366] hover:bg-slate-50 transition-all cursor-pointer" onClick={() => setPreviewDoc(doc)}>
+               <div key={doc.id} className="border border-slate-200 dark:border-slate-800 p-4 flex items-center justify-between group bg-white dark:bg-slate-900 hover:border-[#003366] dark:hover:border-[#FF9933] hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer" onClick={() => setPreviewDoc(doc)}>
                  <div className="flex items-center gap-3 overflow-hidden">
                    {getDocIcon(doc.type)}
                    <div className="truncate">
-                     <p className="text-xs font-bold text-[#003366] truncate">{doc.name}</p>
-                     <p className="text-[10px] text-slate-400 font-medium">{(doc.size/1024/1024).toFixed(2)} MB</p>
+                     <p className="text-xs font-bold text-[#003366] dark:text-white truncate">{doc.name}</p>
+                     <p className="text-[10px] text-slate-400 dark:text-slate-500 font-medium">{(doc.size/1024/1024).toFixed(2)} MB</p>
                    </div>
                  </div>
                  <Eye className="w-4 h-4 text-slate-300 group-hover:text-[#FF9933] flex-shrink-0" />
@@ -657,7 +703,7 @@ const BidderView = ({ currentFile, currentBidder, data, updateData, setUploadMod
         </div>
 
         <div className="mb-12">
-          <h3 className="text-sm font-black text-[#003366] uppercase tracking-[0.2em] mb-6 border-b-2 border-[#FF9933] pb-2 inline-block">
+          <h3 className="text-sm font-black text-[#003366] dark:text-white uppercase tracking-[0.2em] mb-6 border-b-2 border-[#FF9933] pb-2 inline-block">
             Criteria Evaluation
           </h3>
           
@@ -670,17 +716,17 @@ const BidderView = ({ currentFile, currentBidder, data, updateData, setUploadMod
               if (c.verdict === 'Manual Review') verdictChip = <span className="bg-amber-100 text-amber-800 text-[10px] font-black uppercase px-2 py-1 rounded-full tracking-widest border border-amber-200">⚠ Manual Review</span>;
 
               return (
-                <div key={c.id} className="border border-slate-200 bg-white overflow-hidden transition-all">
+                <div key={c.id} className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden transition-all shadow-sm">
                   <div 
-                    className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors"
+                    className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                     onClick={() => toggleCriteria(c.id)}
                   >
                     <div className="flex items-center gap-4 flex-1">
-                      <div className="bg-slate-100 text-slate-600 font-mono text-[10px] font-bold px-2 py-1 uppercase border border-slate-200">
+                      <div className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono text-[10px] font-bold px-2 py-1 uppercase border border-slate-200 dark:border-slate-700">
                         {c.id}
                       </div>
                       <div className="flex-1">
-                        <div className="text-sm font-bold text-[#003366]">{c.description}</div>
+                        <div className="text-sm font-bold text-[#003366] dark:text-white">{c.description}</div>
                         <div className="flex items-center gap-3 mt-1">
                           <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{c.category}</span>
                           {c.mandatory && <span className="text-[9px] font-black text-[#FF9933] uppercase tracking-widest">• Mandatory</span>}
@@ -694,21 +740,21 @@ const BidderView = ({ currentFile, currentBidder, data, updateData, setUploadMod
                   </div>
                   
                   {isExpanded && (
-                    <div className="p-4 bg-slate-50 border-t border-slate-200 text-sm animate-[fadeIn_0.2s_ease-out]">
+                    <div className="p-4 bg-slate-50 dark:bg-slate-800/50 border-t border-slate-200 dark:border-slate-800 text-sm animate-[fadeIn_0.2s_ease-out]">
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
-                          <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Extracted Value</div>
-                          <div className="font-medium text-slate-800 bg-white border border-slate-200 p-2">{c.extractedValue}</div>
+                          <div className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Extracted Value</div>
+                          <div className="font-medium text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2">{c.extractedValue}</div>
                         </div>
                         <div>
-                          <div className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Reasoning</div>
-                          <div className="font-medium text-slate-800 bg-white border border-slate-200 p-2">{c.reason}</div>
+                          <div className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Reasoning</div>
+                          <div className="font-medium text-slate-800 dark:text-slate-200 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 p-2">{c.reason}</div>
                         </div>
                       </div>
                       <div className="mt-4 flex items-center gap-6">
                         <div>
-                          <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mr-2">Source Document:</span>
-                          <span className="font-bold text-[#003366] text-xs underline decoration-slate-300 underline-offset-4 cursor-pointer">{c.sourceDocument}</span>
+                          <span className="text-[9px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mr-2">Source Document:</span>
+                          <span className="font-bold text-[#003366] dark:text-[#FF9933] text-xs underline decoration-slate-300 dark:decoration-slate-700 underline-offset-4 cursor-pointer">{c.sourceDocument}</span>
                         </div>
                         <div>
                           <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest mr-2">AI Confidence:</span>
@@ -724,12 +770,12 @@ const BidderView = ({ currentFile, currentBidder, data, updateData, setUploadMod
         </div>
 
         <div>
-          <h3 className="text-sm font-black text-[#003366] uppercase tracking-[0.2em] mb-6">
+          <h3 className="text-sm font-black text-[#003366] dark:text-white uppercase tracking-[0.2em] mb-6">
             Risk Assessment
           </h3>
-          <div className="bg-white border border-slate-200 p-6">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
             <div className="flex justify-between items-end mb-2">
-              <span className="text-xs font-black text-slate-600 uppercase tracking-widest">Overall Risk Profile</span>
+              <span className="text-xs font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest">Overall Risk Profile</span>
               <span className={`text-sm font-black uppercase tracking-widest ${res.overallVerdict === 'Clearly Eligible' ? 'text-green-600' : res.overallVerdict === 'Clearly Not Eligible' ? 'text-red-600' : 'text-amber-600'}`}>
                 {riskLevel}
               </span>
@@ -738,12 +784,12 @@ const BidderView = ({ currentFile, currentBidder, data, updateData, setUploadMod
               <div className={`${riskColor} h-2 transition-all duration-1000`} style={{ width: riskWidth }} />
             </div>
             <ul className="space-y-2">
-              <li className="flex items-start gap-2 text-xs font-medium text-slate-600">
-                <div className="w-1 h-1 bg-slate-400 mt-1.5 rounded-full" />
+              <li className="flex items-start gap-2 text-xs font-medium text-slate-600 dark:text-slate-400">
+                <div className="w-1 h-1 bg-slate-400 dark:bg-slate-600 mt-1.5 rounded-full" />
                 Automated risk scoring based on deviation from mandatory requirements.
               </li>
-              <li className="flex items-start gap-2 text-xs font-medium text-slate-600">
-                <div className="w-1 h-1 bg-slate-400 mt-1.5 rounded-full" />
+              <li className="flex items-start gap-2 text-xs font-medium text-slate-600 dark:text-slate-400">
+                <div className="w-1 h-1 bg-slate-400 dark:bg-slate-600 mt-1.5 rounded-full" />
                 {res.overallVerdict === 'Clearly Eligible' ? 'No major inconsistencies detected in submitted documents.' : 'Please review the flagged criteria for potential disqualification grounds.'}
               </li>
             </ul>
@@ -758,31 +804,31 @@ const DocumentPreviewModal = ({ previewDoc, setPreviewDoc }: any) => {
   if (!previewDoc) return null;
   return (
     <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
-      <div className="bg-slate-50 w-full max-w-5xl h-[85vh] shadow-2xl flex flex-col animate-[scaleIn_0.2s_ease-out]">
-        <div className="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center flex-shrink-0">
+      <div className="bg-slate-50 dark:bg-slate-950 w-full max-w-5xl h-[85vh] shadow-2xl flex flex-col animate-[scaleIn_0.2s_ease-out]">
+        <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex justify-between items-center flex-shrink-0">
           <div className="flex items-center gap-4">
-            <div className="w-10 h-10 bg-slate-100 flex items-center justify-center">
+            <div className="w-10 h-10 bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
               {getDocIcon(previewDoc.type)}
             </div>
             <div>
-              <h3 className="text-sm font-black text-[#003366] truncate max-w-lg">{previewDoc.name}</h3>
-              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+              <h3 className="text-sm font-black text-[#003366] dark:text-white truncate max-w-lg">{previewDoc.name}</h3>
+              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
                 {(previewDoc.size / 1024 / 1024).toFixed(2)} MB • Uploaded {new Date(previewDoc.uploadedAt).toLocaleString()}
               </p>
             </div>
           </div>
-          <button onClick={() => setPreviewDoc(null)} className="text-slate-400 hover:text-red-500 bg-slate-100 p-2"><X className="w-5 h-5"/></button>
+          <button onClick={() => setPreviewDoc(null)} className="text-slate-400 hover:text-red-500 bg-slate-100 dark:bg-slate-800 p-2 transition-colors"><X className="w-5 h-5"/></button>
         </div>
-        <div className="flex-1 p-8 bg-slate-100 overflow-y-auto flex justify-center items-start">
-          <div className="w-full max-w-3xl bg-white shadow-sm border border-slate-200 min-h-full p-12 relative flex flex-col items-center justify-center">
+        <div className="flex-1 p-8 bg-slate-100 dark:bg-slate-950 overflow-y-auto flex justify-center items-start">
+          <div className="w-full max-w-3xl bg-white dark:bg-slate-900 shadow-sm border border-slate-200 dark:border-slate-800 min-h-full p-12 relative flex flex-col items-center justify-center">
             <div className="text-center opacity-30 select-none">
-              <FileText className="w-24 h-24 mx-auto mb-6 text-slate-400" />
-              <div className="text-2xl font-black uppercase tracking-widest text-slate-400 mb-2">Simulated Preview</div>
-              <p className="text-sm font-bold text-slate-400">File contents are not stored in window.storage.</p>
+              <FileText className="w-24 h-24 mx-auto mb-6 text-slate-400 dark:text-slate-600" />
+              <div className="text-2xl font-black uppercase tracking-widest text-slate-400 dark:text-slate-600 mb-2">Simulated Preview</div>
+              <p className="text-sm font-bold text-slate-400 dark:text-slate-600">File contents are not stored in window.storage.</p>
             </div>
-            <div className="absolute inset-12 pointer-events-none opacity-5">
+            <div className="absolute inset-12 pointer-events-none opacity-5 dark:opacity-10">
               {[...Array(20)].map((_, i) => (
-                <div key={i} className="h-4 bg-black mb-4 rounded-full w-full" style={{ width: `${Math.random() * 40 + 60}%` }} />
+                <div key={i} className="h-4 bg-black dark:bg-white mb-4 rounded-full w-full" style={{ width: `${Math.random() * 40 + 60}%` }} />
               ))}
             </div>
           </div>
@@ -798,13 +844,13 @@ const CreateFileModal = ({ isCreateFileModalOpen, setIsCreateFileModalOpen, hand
   
   return (
     <div className="fixed inset-0 bg-black/50 z-[50] flex items-center justify-center p-4 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
-      <div className="bg-white w-full max-w-md shadow-xl border border-slate-200 overflow-hidden animate-[scaleIn_0.2s_ease-out]">
-        <div className="bg-[#003366] text-white px-6 py-4 flex justify-between items-center">
+      <div className="bg-white dark:bg-slate-900 w-full max-w-md shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-[scaleIn_0.2s_ease-out]">
+        <div className="bg-[#003366] dark:bg-[#001122] text-white px-6 py-4 flex justify-between items-center border-b border-[#FF9933]/30">
           <h3 className="text-sm font-black uppercase tracking-widest">Create New File</h3>
           <button onClick={() => setIsCreateFileModalOpen(false)} className="text-white/50 hover:text-white"><X className="w-5 h-5"/></button>
         </div>
         <div className="p-6">
-          <label className="block text-xs font-black text-[#003366] uppercase tracking-widest mb-2">File Name / Tender ID</label>
+          <label className="block text-xs font-black text-[#003366] dark:text-[#FF9933] uppercase tracking-widest mb-2">File Name / Tender ID</label>
           <input 
             autoFocus
             type="text" 
@@ -812,17 +858,17 @@ const CreateFileModal = ({ isCreateFileModalOpen, setIsCreateFileModalOpen, hand
             onChange={e => setName(e.target.value)}
             onKeyDown={e => e.key === 'Enter' && name.trim() && handleCreateFile(name.trim())}
             placeholder="e.g., CRPF/PROC/2026/01"
-            className="w-full border-2 border-slate-200 p-3 text-sm focus:outline-none focus:border-[#003366] mb-8"
+            className="w-full bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 p-3 text-sm text-[#333] dark:text-slate-200 focus:outline-none focus:border-[#003366] dark:focus:border-[#FF9933] mb-8"
           />
           <div className="flex justify-end gap-4">
             <button 
-              className="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-widest hover:bg-slate-50"
+              className="px-6 py-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
               onClick={() => setIsCreateFileModalOpen(false)}
             >
               Cancel
             </button>
             <button 
-              className="bg-[#003366] text-white px-8 py-3 text-xs font-black uppercase tracking-widest disabled:opacity-50 hover:bg-[#002244]"
+              className="bg-[#003366] dark:bg-[#FF9933] text-white dark:text-[#003366] px-8 py-3 text-xs font-black uppercase tracking-widest disabled:opacity-50 hover:bg-[#002244] dark:hover:bg-[#FF9933]/80 transition-all"
               disabled={!name.trim()}
               onClick={() => handleCreateFile(name.trim())}
             >
@@ -879,7 +925,7 @@ const UploadModal = ({ uploadModalConfig, setUploadModalConfig, currentFile, upd
     setUploadModalConfig(null);
 
     try {
-      const { addTenderDocuments, addBidderDocuments, updateDocumentStatus, processDocumentML, extractCriteriaML, extractValuesML } = await import('@/lib/api-client');
+      const { addTenderDocuments, addBidderDocuments, updateDocumentStatus, processDocumentML, extractCriteriaML, extractValuesML, updateWorkspace } = await import('@/lib/api-client');
       let createdDocs;
       if (isTender) {
         createdDocs = await addTenderDocuments(currentFile.id, payloadDocs);
@@ -895,7 +941,7 @@ const UploadModal = ({ uploadModalConfig, setUploadModalConfig, currentFile, upd
             if (isTender) {
               return { 
                 ...f, 
-                tenderStatus: 'scanning',
+                tenderStatus: 'ml_processing',
                 tenderDocs: [...f.tenderDocs, ...createdDocs] 
               };
             } else {
@@ -909,37 +955,43 @@ const UploadModal = ({ uploadModalConfig, setUploadModalConfig, currentFile, upd
       });
 
       // --- ML Pipeline Processing ---
-      // Process each file through the Railway ML pipeline in the background
-      createdDocs.forEach((doc: any, idx: number) => {
-        const originalFile = filesToProcess[idx];
-        if (!originalFile) return;
+      // Process each file through the Railway ML pipeline
+      const processDocs = async () => {
+        let hasError = false;
+        let errorMessage = "";
+        
+        for (let idx = 0; idx < createdDocs.length; idx++) {
+          const doc = createdDocs[idx];
+          const originalFile = filesToProcess[idx];
+          if (!originalFile) continue;
 
-        // Step 1: Set status to 'scanning' — ML pipeline is processing
-        setTimeout(async () => {
           updateData((prev: any) => updateDocStatus(prev, currentFile.id, configType, tId, doc.id, 'scanning'));
           await updateDocumentStatus(currentFile.id, doc.id, 'scanning');
 
           try {
+            let extractedText = "";
+
             if (isTender) {
-              // For tender docs: OCR + extract criteria
               console.log(`[ML Pipeline] Processing tender doc: ${originalFile.name}`);
               const mlResult = await processDocumentML(originalFile);
               console.log(`[ML Pipeline] OCR complete for: ${originalFile.name}`, mlResult);
+              extractedText = mlResult.extracted_text || "";
 
-              // Also extract criteria from the tender document
               try {
                 const criteriaResult = await extractCriteriaML(originalFile);
                 console.log(`[ML Pipeline] Criteria extracted:`, criteriaResult);
+                if (criteriaResult.criteria) {
+                  extractedText += "\n\nExtracted Criteria:\n" + JSON.stringify(criteriaResult.criteria, null, 2);
+                }
               } catch (criteriaErr) {
                 console.warn(`[ML Pipeline] Criteria extraction failed (non-critical):`, criteriaErr);
               }
             } else {
-              // For bidder docs: OCR + extract values against criteria
               console.log(`[ML Pipeline] Processing bidder doc: ${originalFile.name}`);
               const mlResult = await processDocumentML(originalFile);
               console.log(`[ML Pipeline] OCR complete for: ${originalFile.name}`, mlResult);
+              extractedText = mlResult.extracted_text || "";
 
-              // Try to extract values if criteria exist
               try {
                 const tenderCriteria = currentFile.tenderDocs?.length > 0 
                   ? JSON.stringify({ criteria: "Extract all eligibility criteria values" })
@@ -947,25 +999,60 @@ const UploadModal = ({ uploadModalConfig, setUploadModalConfig, currentFile, upd
                 if (tenderCriteria) {
                   const valuesResult = await extractValuesML(originalFile, tenderCriteria);
                   console.log(`[ML Pipeline] Values extracted:`, valuesResult);
+                  if (valuesResult.values) {
+                     extractedText += "\n\nExtracted Values:\n" + JSON.stringify(valuesResult.values, null, 2);
+                  }
                 }
               } catch (valErr) {
                 console.warn(`[ML Pipeline] Value extraction failed (non-critical):`, valErr);
               }
             }
 
-            // Step 2: ML processing complete — mark as 'complete'
+            // Save extractedText to UI state
+            updateData((prev: any) => ({
+              ...prev,
+              files: prev.files.map((f: any) => {
+                if (f.id !== currentFile.id) return f;
+                if (isTender) {
+                  return { ...f, tenderDocs: f.tenderDocs.map((d: any) => d.id === doc.id ? { ...d, extractedText } : d) };
+                } else {
+                  return { ...f, bidders: f.bidders.map((b: any) => b.id === tId ? { ...b, docs: b.docs.map((d: any) => d.id === doc.id ? { ...d, extractedText } : d) } : b) };
+                }
+              })
+            }));
+
             updateData((prev: any) => updateDocStatus(prev, currentFile.id, configType, tId, doc.id, 'complete'));
             await updateDocumentStatus(currentFile.id, doc.id, 'complete');
             console.log(`[ML Pipeline] ✓ Document processed: ${originalFile.name}`);
 
-          } catch (mlErr) {
+          } catch (mlErr: any) {
             console.error(`[ML Pipeline] Error processing ${originalFile.name}:`, mlErr);
-            // Still mark as complete — ML failure is non-blocking for now
-            updateData((prev: any) => updateDocStatus(prev, currentFile.id, configType, tId, doc.id, 'complete'));
-            await updateDocumentStatus(currentFile.id, doc.id, 'complete');
+            updateData((prev: any) => updateDocStatus(prev, currentFile.id, configType, tId, doc.id, 'failed'));
+            await updateDocumentStatus(currentFile.id, doc.id, 'failed');
+            hasError = true;
+            errorMessage = mlErr.message || "Failed to communicate with ML Pipeline";
           }
-        }, 500 + idx * 200);
-      });
+        }
+        
+        if (isTender) {
+          if (hasError) {
+            updateData((prev: any) => ({
+              ...prev,
+              files: prev.files.map((f: any) => f.id === currentFile.id ? { ...f, tenderStatus: 'error', errorMessage } : f)
+            }));
+            await updateWorkspace(currentFile.id, { tenderStatus: 'error' });
+          } else {
+            updateData((prev: any) => ({
+              ...prev,
+              files: prev.files.map((f: any) => f.id === currentFile.id ? { ...f, tenderStatus: 'scanning' } : f)
+            }));
+            await updateWorkspace(currentFile.id, { tenderStatus: 'scanning' });
+          }
+        }
+      };
+
+      processDocs();
+
 
     } catch (e) {
       console.error(e);
@@ -975,25 +1062,25 @@ const UploadModal = ({ uploadModalConfig, setUploadModalConfig, currentFile, upd
 
   return (
     <div className="fixed inset-0 bg-black/50 z-[50] flex items-center justify-center p-4 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
-      <div className="bg-white w-full max-w-2xl shadow-xl border border-slate-200 overflow-hidden animate-[scaleIn_0.2s_ease-out] flex flex-col max-h-[90vh]">
-        <div className="bg-[#003366] text-white px-6 py-4 flex justify-between items-center flex-shrink-0">
+      <div className="bg-white dark:bg-slate-900 w-full max-w-2xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-[scaleIn_0.2s_ease-out] flex flex-col max-h-[90vh]">
+        <div className="bg-[#003366] dark:bg-[#001122] text-white px-6 py-4 flex justify-between items-center flex-shrink-0 border-b border-[#FF9933]/30">
           <h3 className="text-sm font-black uppercase tracking-widest">
             Add {isTender ? 'Tender' : 'Bidder'} Documents
           </h3>
           <button onClick={() => setUploadModalConfig(null)} className="text-white/50 hover:text-white"><X className="w-5 h-5"/></button>
         </div>
         
-        <div className="p-6 overflow-y-auto flex-1">
+        <div className="p-6 overflow-y-auto flex-1 dark:bg-slate-900">
           <div 
-            className={`border-2 border-dashed p-10 text-center cursor-pointer transition-colors mb-6 ${isDragging ? 'border-[#FF9933] bg-[#FF9933]/5' : 'border-slate-300 hover:border-[#003366] bg-slate-50'}`}
+            className={`border-2 border-dashed p-10 text-center cursor-pointer transition-colors mb-6 ${isDragging ? 'border-[#FF9933] bg-[#FF9933]/5' : 'border-slate-300 dark:border-slate-700 hover:border-[#003366] dark:hover:border-[#FF9933] bg-slate-50 dark:bg-slate-800'}`}
             onDragOver={e => { e.preventDefault(); setIsDragging(true); }}
             onDragLeave={() => setIsDragging(false)}
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
           >
-            <UploadCloud className={`w-12 h-12 mx-auto mb-4 ${isDragging ? 'text-[#FF9933]' : 'text-slate-400'}`} />
-            <p className="text-sm font-bold text-[#003366] mb-2">Drop files here or click to browse</p>
-            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Supports PDF, DOCX, JPG, PNG, WEBP</p>
+            <UploadCloud className={`w-12 h-12 mx-auto mb-4 ${isDragging ? 'text-[#FF9933]' : 'text-slate-400 dark:text-slate-600'}`} />
+            <p className="text-sm font-bold text-[#003366] dark:text-white mb-2">Drop files here or click to browse</p>
+            <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">Supports PDF, DOCX, JPG, PNG, WEBP</p>
             <input type="file" multiple className="hidden" ref={fileInputRef} onChange={handleFileSelect} />
           </div>
 
@@ -1002,12 +1089,12 @@ const UploadModal = ({ uploadModalConfig, setUploadModalConfig, currentFile, upd
               <h4 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-3">Selected Files ({selectedFiles.length})</h4>
               <div className="space-y-2">
                 {selectedFiles.map((file, i) => (
-                  <div key={i} className="flex items-center justify-between p-3 border border-slate-200 bg-white">
+                  <div key={i} className="flex items-center justify-between p-3 border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900">
                     <div className="flex items-center gap-3 min-w-0">
                       {getDocIcon(file.type)}
                       <div className="truncate">
-                        <div className="text-xs font-bold text-[#003366] truncate">{file.name}</div>
-                        <div className="text-[10px] font-medium text-slate-400">{(file.size / 1024 / 1024).toFixed(2)} MB</div>
+                        <div className="text-xs font-bold text-[#003366] dark:text-white truncate">{file.name}</div>
+                        <div className="text-[10px] font-medium text-slate-400 dark:text-slate-500">{(file.size / 1024 / 1024).toFixed(2)} MB</div>
                       </div>
                     </div>
                     <button className="text-slate-400 hover:text-red-500 p-2" onClick={() => setSelectedFiles(prev => prev.filter((_, idx) => idx !== i))}><X className="w-4 h-4" /></button>
@@ -1017,9 +1104,9 @@ const UploadModal = ({ uploadModalConfig, setUploadModalConfig, currentFile, upd
             </div>
           )}
         </div>
-        <div className="p-6 border-t border-slate-100 flex justify-end gap-4 flex-shrink-0">
-          <button className="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-widest hover:bg-slate-50" onClick={() => setUploadModalConfig(null)}>Cancel</button>
-          <button className="bg-[#003366] text-white px-8 py-3 text-xs font-black uppercase tracking-widest disabled:opacity-50 hover:bg-[#002244]" disabled={selectedFiles.length === 0} onClick={handleUpload}>Upload Documents</button>
+        <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-4 flex-shrink-0 bg-slate-50/50 dark:bg-slate-900/50">
+          <button className="px-6 py-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" onClick={() => setUploadModalConfig(null)}>Cancel</button>
+          <button className="bg-[#003366] dark:bg-[#FF9933] text-white dark:text-[#003366] px-8 py-3 text-xs font-black uppercase tracking-widest disabled:opacity-50 hover:bg-[#002244] dark:hover:bg-[#FF9933]/90 transition-all shadow-lg border border-transparent dark:border-[#FF9933]/20" disabled={selectedFiles.length === 0} onClick={handleUpload}>Upload Documents</button>
         </div>
       </div>
     </div>
@@ -1031,8 +1118,8 @@ const CreateBidderModal = ({ isCreateBidderModalOpen, setIsCreateBidderModalOpen
   const [name, setName] = useState('');
   return (
     <div className="fixed inset-0 bg-black/50 z-[50] flex items-center justify-center p-4 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
-      <div className="bg-white w-full max-w-md shadow-xl border border-slate-200 overflow-hidden animate-[scaleIn_0.2s_ease-out]">
-        <div className="bg-[#003366] text-white px-6 py-4 flex justify-between items-center">
+      <div className="bg-white dark:bg-slate-900 w-full max-w-md shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-[scaleIn_0.2s_ease-out]">
+        <div className="bg-[#003366] dark:bg-[#001122] text-white px-6 py-4 flex justify-between items-center border-b border-[#FF9933]/30">
           <h3 className="text-sm font-black uppercase tracking-widest">New Bidder Organization</h3>
           <button onClick={() => setIsCreateBidderModalOpen(false)} className="text-white/50 hover:text-white"><X className="w-5 h-5"/></button>
         </div>
@@ -1056,18 +1143,19 @@ const Shell = ({ children, data, updateData, setCurrentFileId, setCurrentBidderI
   setCurrentFileId: (id: string | null) => void,
   setCurrentBidderId: (id: string | null) => void
 }) => (
-  <div className="h-screen overflow-hidden flex flex-col bg-slate-50 font-sans text-[#333] relative">
+  <div className="h-screen overflow-hidden flex flex-col bg-slate-50 dark:bg-slate-950 font-sans text-[#333] dark:text-slate-200 relative">
     <DotPattern
       className={cn(
-        "[mask-image:radial-gradient(1200px_circle_at_center,white,transparent)] opacity-40",
+        "[mask-image:radial-gradient(1200px_circle_at_center,white,transparent)] opacity-40 dark:opacity-20",
+        "fixed inset-0 w-full h-full"
       )}
     />
-    <div className="gov-tricolor flex h-[5px] w-full flex-shrink-0 relative z-10">
+    <div className="flex h-[5px] w-full flex-shrink-0 relative z-20">
       <div className="bg-[#FF9933] flex-1" />
-      <div className="bg-white flex-1" />
+      <div className="bg-[#FFFFFF] flex-1 shadow-[0_0_10px_rgba(255,255,255,0.1)]" />
       <div className="bg-[#138808] flex-1" />
     </div>
-    <header className="bg-[#003366] text-white px-6 py-4 flex items-center justify-between border-b-2 border-[#FF9933] flex-shrink-0 relative z-10">
+    <header className="bg-[#003366] dark:bg-[#001122] text-white px-6 py-4 flex items-center justify-between border-b-2 border-[#FF9933] flex-shrink-0 relative z-10">
       <div className="flex items-center gap-4 cursor-pointer" onClick={() => { setCurrentFileId(null); setCurrentBidderId(null); }}>
         <div className="w-8 h-8 bg-white text-[#003366] flex items-center justify-center font-black text-lg border border-[#FF9933]">
           N
@@ -1083,6 +1171,9 @@ const Shell = ({ children, data, updateData, setCurrentFileId, setCurrentBidderI
           >
             <div className={`w-3 h-3 bg-white rounded-full absolute top-0.5 transition-all ${data.isTestMode ? 'left-4' : 'left-0.5'}`} />
           </button>
+        </div>
+        <div className="mr-2">
+          <ThemeToggle />
         </div>
         <div className="text-right hidden sm:block">
           <div className="text-xs font-bold tracking-widest uppercase">Evaluator User</div>
@@ -1100,31 +1191,31 @@ const Shell = ({ children, data, updateData, setCurrentFileId, setCurrentBidderI
 );
 
 const HomeGrid = ({ data, setIsCreateFileModalOpen, setCurrentFileId, setCurrentBidderId, handleDeleteFile }: any) => (
-  <div className="flex-1 overflow-auto p-8 bg-slate-50 [scrollbar-gutter:stable]">
+  <div className="flex-1 overflow-auto p-8 bg-transparent relative z-10 [scrollbar-gutter:stable]">
     <div className="max-w-6xl mx-auto">
-      <h2 className="text-lg font-black text-[#003366] uppercase tracking-widest mb-6 pb-2 border-b-2 border-slate-200">
+      <h2 className="text-lg font-black text-[#003366] dark:text-white uppercase tracking-widest mb-6 pb-2 border-b-2 border-slate-200 dark:border-slate-800">
         Recent Files
       </h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
         <div 
-          className="bg-white border-2 border-dashed border-slate-300 p-6 flex flex-col items-center justify-center h-48 cursor-pointer hover:border-[#003366] hover:bg-slate-50 transition-all group"
+          className="bg-white dark:bg-slate-900 border-2 border-dashed border-slate-300 dark:border-slate-700 p-6 flex flex-col items-center justify-center h-64 cursor-pointer hover:border-[#003366] dark:hover:border-[#FF9933] hover:bg-slate-50 dark:hover:bg-slate-800 transition-all group"
           onClick={() => setIsCreateFileModalOpen(true)}
         >
-          <div className="w-12 h-12 bg-slate-100 flex items-center justify-center group-hover:bg-[#003366] group-hover:text-white transition-all text-[#003366] mb-4">
+          <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 flex items-center justify-center group-hover:bg-[#003366] dark:group-hover:bg-[#FF9933] group-hover:text-white transition-all text-[#003366] dark:text-slate-400 mb-4">
             <Plus className="w-6 h-6" />
           </div>
-          <span className="text-sm font-bold text-[#003366] uppercase tracking-wider">Create new File</span>
+          <span className="text-sm font-bold text-[#003366] dark:text-slate-300 uppercase tracking-wider">Create new File</span>
         </div>
 
         {data.files.map((file: any) => (
           <div 
             key={file.id}
-            className="bg-white border border-slate-200 p-8 flex flex-col justify-between h-56 cursor-pointer hover:border-[#003366] hover:bg-slate-50 transition-all relative group"
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 flex flex-col justify-between h-64 cursor-pointer hover:border-[#003366] dark:hover:border-[#FF9933] hover:bg-slate-50 dark:hover:bg-slate-800 transition-all relative group"
             onClick={() => { setCurrentFileId(file.id); setCurrentBidderId(null); }}
           >
             <div>
               <div className="flex items-start justify-between">
-                <FileText className="w-6 h-6 text-[#003366] mb-3" />
+                <FileText className="w-6 h-6 text-[#003366] dark:text-[#FF9933] mb-3" />
                 <button 
                   className="opacity-0 group-hover:opacity-100 text-slate-400 hover:text-red-500 transition-all p-1"
                   onClick={(e) => handleDeleteFile(e, file.id)}
@@ -1132,11 +1223,11 @@ const HomeGrid = ({ data, setIsCreateFileModalOpen, setCurrentFileId, setCurrent
                   <Trash2 className="w-4 h-4" />
                 </button>
               </div>
-              <h3 className="font-bold text-[#003366] line-clamp-2 leading-snug">
+              <h3 className="font-bold text-[#003366] dark:text-white line-clamp-2 leading-snug">
                 {file.name.length > 40 ? file.name.substring(0, 40) + '...' : file.name}
               </h3>
             </div>
-            <div className="text-xs text-slate-500 font-medium space-y-1">
+            <div className="text-xs text-slate-500 dark:text-slate-400 font-medium space-y-1">
               <div className="mb-2">
                 {file.tenderStatus === 'ready' && <span className="bg-green-100 text-green-800 text-[9px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider">✓ Ready for Eval</span>}
                 {file.tenderStatus === 'clarifying' && <span className="bg-amber-100 text-amber-800 text-[9px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider">⚠ Action Required</span>}
@@ -1175,17 +1266,17 @@ const WorkspaceSidebar = ({ currentFile, currentBidderId, setCurrentFileId, setC
   const isTenderReady = currentFile.tenderStatus === 'ready';
 
   return (
-    <div className="w-72 bg-slate-50 border-r border-slate-200 flex flex-col h-full overflow-y-auto flex-shrink-0">
-      <div className="p-4 border-b border-slate-200 bg-white sticky top-0 z-10">
-        <div className="flex items-center gap-2 text-xs font-black text-slate-400 uppercase tracking-widest cursor-pointer hover:text-[#003366] transition-colors" onClick={() => { setCurrentFileId(null); setCurrentBidderId(null); }}>
+    <div className="w-72 bg-slate-50 dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 flex flex-col h-full overflow-y-auto flex-shrink-0">
+      <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 sticky top-0 z-10">
+        <div className="flex items-center gap-2 text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest cursor-pointer hover:text-[#003366] dark:hover:text-[#FF9933] transition-colors" onClick={() => { setCurrentFileId(null); setCurrentBidderId(null); }}>
           <ChevronLeft className="w-4 h-4" /> Back to Files
         </div>
-        <h2 className="mt-3 text-sm font-black text-[#003366] uppercase tracking-wide truncate" title={currentFile.name}>
+        <h2 className="mt-3 text-sm font-black text-[#003366] dark:text-white uppercase tracking-wide truncate" title={currentFile.name}>
           {currentFile.name}
         </h2>
       </div>
 
-      <div className="p-4 border-b border-slate-200">
+      <div className="p-4 border-b border-slate-200 dark:border-slate-800">
         <div className="flex items-center justify-between mb-4">
           <h3 className="text-xs font-black text-slate-600 uppercase tracking-widest flex items-center gap-2">
             <FileText className="w-3.5 h-3.5" /> Tender Docs
@@ -1194,13 +1285,13 @@ const WorkspaceSidebar = ({ currentFile, currentBidderId, setCurrentFileId, setC
         
         <div className="space-y-2 mb-4">
           {currentFile.tenderDocs.length === 0 ? (
-            <div className="text-xs text-slate-400 italic py-2 text-center">No tender docs yet.</div>
+            <div className="text-xs text-slate-400 dark:text-slate-600 italic py-2 text-center">No tender docs yet.</div>
           ) : (
             currentFile.tenderDocs.map((doc: any) => (
-              <div key={doc.id} className="flex items-center justify-between p-3 bg-white border border-slate-200 hover:border-[#003366] hover:bg-slate-50 transition-all cursor-pointer group" onClick={() => setCurrentBidderId(null)}>
+              <div key={doc.id} className="flex items-center justify-between p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-[#003366] dark:hover:border-[#FF9933] hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer group" onClick={() => setCurrentBidderId(null)}>
                 <div className="flex items-center gap-2 min-w-0">
                   {getDocIcon(doc.type)}
-                  <span className="text-[11px] font-bold text-slate-700 truncate" title={doc.name}>{doc.name}</span>
+                  <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 truncate" title={doc.name}>{doc.name}</span>
                 </div>
                 <div className="flex items-center gap-2">
                   {getStatusChip(doc.status)}
@@ -1216,7 +1307,7 @@ const WorkspaceSidebar = ({ currentFile, currentBidderId, setCurrentFileId, setC
         </div>
         
         <button 
-          className="w-full py-3 border-2 border-dashed border-slate-300 text-[10px] font-black text-[#003366] uppercase tracking-widest hover:border-[#003366] hover:bg-white transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
+          className="w-full py-3 border-2 border-dashed border-slate-300 dark:border-slate-800 text-[10px] font-black text-[#003366] dark:text-[#FF9933] uppercase tracking-widest hover:border-[#003366] dark:hover:border-[#FF9933] hover:bg-white dark:hover:bg-slate-900 transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
           onClick={() => setUploadModalConfig({ type: 'tender', targetId: currentFile.id })}
         >
           <Plus className="w-3.5 h-3.5" /> Add Tender Docs
@@ -1244,11 +1335,11 @@ const WorkspaceSidebar = ({ currentFile, currentBidderId, setCurrentFileId, setC
               return (
                 <div 
                   key={bidder.id} 
-                  className={`flex items-center justify-between p-3 border transition-all cursor-pointer hover:bg-slate-50 ${currentBidderId === bidder.id ? 'bg-[#003366] text-white border-[#003366] scale-[1.02]' : 'bg-white border-slate-200 hover:border-[#003366] text-slate-800'}`}
+                  className={`flex items-center justify-between p-3 border transition-all cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 ${currentBidderId === bidder.id ? 'bg-[#003366] dark:bg-[#FF9933] text-white border-[#003366] dark:border-[#FF9933] scale-[1.02]' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-[#003366] dark:hover:border-[#FF9933] text-slate-800 dark:text-slate-200'}`}
                   onClick={() => setCurrentBidderId(bidder.id)}
                 >
                   <div className="flex items-center gap-2 min-w-0">
-                    <Folder className={`w-4 h-4 ${currentBidderId === bidder.id ? 'text-[#FF9933]' : 'text-slate-400'}`} />
+                    <Folder className={`w-4 h-4 ${currentBidderId === bidder.id ? 'text-[#FF9933] dark:text-[#003366]' : 'text-slate-400 dark:text-slate-600'}`} />
                     <span className="text-[11px] font-black truncate" title={bidder.name}>{bidder.name}</span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -1263,7 +1354,7 @@ const WorkspaceSidebar = ({ currentFile, currentBidderId, setCurrentFileId, setC
         </div>
 
         <button 
-          className="w-full py-3 border-2 border-dashed border-slate-300 text-[10px] font-black text-[#003366] uppercase tracking-widest hover:border-[#003366] hover:bg-white transition-all flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-30"
+          className="w-full py-3 border-2 border-dashed border-slate-300 dark:border-slate-800 text-[10px] font-black text-[#003366] dark:text-[#FF9933] uppercase tracking-widest hover:border-[#003366] dark:hover:border-[#FF9933] hover:bg-white dark:hover:bg-slate-900 transition-all flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-30"
           onClick={() => setIsCreateBidderModalOpen(true)}
           disabled={!isTenderReady}
         >
@@ -1288,39 +1379,55 @@ const WorkspaceRightPanel = ({ currentFile }: { currentFile: FileWorkspace | nul
   });
 
   return (
-    <div className="w-72 bg-slate-50 border-l border-slate-200 p-6 flex flex-col h-full overflow-y-auto hidden xl:block flex-shrink-0 [scrollbar-gutter:stable]">
-      <h3 className="text-xs font-black text-[#003366] uppercase tracking-widest mb-4">Workspace Summary</h3>
+    <div className="w-72 bg-slate-50 dark:bg-slate-950 border-l border-slate-200 dark:border-slate-800 p-6 flex flex-col h-full overflow-y-auto hidden xl:block flex-shrink-0 [scrollbar-gutter:stable]">
+      <h3 className="text-xs font-black text-[#003366] dark:text-white uppercase tracking-widest mb-4">Workspace Summary</h3>
       
-      <div className="bg-white border border-slate-200 p-6 mb-6">
-        <div className="flex justify-between items-center mb-3">
-          <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Tender Docs</span>
-          <span className="text-sm font-black text-[#003366]">{currentFile.tenderDocs.length}</span>
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 mb-6 shadow-sm">
+        <div className="flex justify-between items-center mb-3 text-[#003366] dark:text-slate-300">
+          <span className="text-xs text-slate-500 dark:text-slate-500 font-bold uppercase tracking-wider">Tender Docs</span>
+          <span className="text-sm font-black">{currentFile.tenderDocs.length}</span>
         </div>
-        <div className="flex justify-between items-center mb-3">
-          <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Bidders</span>
-          <span className="text-sm font-black text-[#003366]">{currentFile.bidders.length}</span>
+        <div className="flex justify-between items-center mb-3 text-[#003366] dark:text-slate-300">
+          <span className="text-xs text-slate-500 dark:text-slate-500 font-bold uppercase tracking-wider">Bidders</span>
+          <span className="text-sm font-black">{currentFile.bidders.length}</span>
         </div>
-        <div className="flex justify-between items-center">
-          <span className="text-xs text-slate-500 font-bold uppercase tracking-wider">Criteria Extracted</span>
-          <span className="text-sm font-black text-[#003366]">{totalCriteria}</span>
+        <div className="flex justify-between items-center text-[#003366] dark:text-slate-300">
+          <span className="text-xs text-slate-500 dark:text-slate-500 font-bold uppercase tracking-wider">Criteria Extracted</span>
+          <span className="text-sm font-black">{totalCriteria}</span>
         </div>
       </div>
 
-      <h3 className="text-xs font-black text-[#003366] uppercase tracking-widest mb-4">System Status</h3>
+      <h3 className="text-xs font-black text-[#003366] dark:text-white uppercase tracking-widest mb-4">System Status</h3>
       
       <div className="space-y-4">
-        <div className="bg-white border border-slate-200 p-6">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
           <h4 className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-2">Tender Status</h4>
           {currentFile.tenderStatus === 'awaiting_docs' && <span className="text-xs text-slate-400">Waiting for docs...</span>}
-          {currentFile.tenderStatus === 'scanning' && (
+          {currentFile.tenderStatus === 'ml_processing' && (
             <div>
               <div className="flex justify-between text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-1">
-                <span>Scanning...</span>
+                <span>ML Pipeline...</span>
                 <span className="animate-pulse">Processing</span>
               </div>
               <div className="w-full bg-slate-100 h-1">
                 <div className="bg-amber-500 h-1 w-1/2 animate-[pulse_1.5s_ease-in-out_infinite]" />
               </div>
+            </div>
+          )}
+          {currentFile.tenderStatus === 'scanning' && (
+            <div>
+              <div className="flex justify-between text-[10px] font-bold text-[#003366] uppercase tracking-widest mb-1">
+                <span>Analyzing Context...</span>
+                <span className="animate-pulse">Active</span>
+              </div>
+              <div className="w-full bg-slate-100 h-1">
+                <div className="bg-[#003366] h-1 w-1/2 animate-[pulse_1.5s_ease-in-out_infinite]" />
+              </div>
+            </div>
+          )}
+          {currentFile.tenderStatus === 'error' && (
+            <div className="flex items-center gap-2 text-xs font-bold text-red-600">
+              <AlertCircle className="w-4 h-4" /> ML Pipeline Error
             </div>
           )}
           {currentFile.tenderStatus === 'clarifying' && (
@@ -1447,7 +1554,10 @@ export default function NirnayAI() {
         ::-webkit-scrollbar-track { background: transparent; }
         ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 10px; }
         ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+        .dark ::-webkit-scrollbar-thumb { background: #1e293b; }
+        .dark ::-webkit-scrollbar-thumb:hover { background: #334155; }
         * { scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
+        .dark * { scrollbar-color: #1e293b transparent; }
       `}} />
       <Shell 
         data={data} 

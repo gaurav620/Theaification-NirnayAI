@@ -146,3 +146,19 @@ export async function getCacheStatus(): Promise<{ cache_count: number }> {
   if (!res.ok) throw new Error(`ML cache-status failed: ${res.status}`);
   return res.json();
 }
+
+/**
+ * Generic LLM chat/query endpoint on the ML pipeline
+ */
+export async function chatLLM(system: string, message: string): Promise<any> {
+  const res = await fetch(`${ML_PIPELINE_URL}/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ system, message }),
+  });
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`ML chat failed (${res.status}): ${errText}`);
+  }
+  return res.json();
+}
