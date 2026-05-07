@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { Shield, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, ArrowLeft } from "lucide-react";
@@ -45,7 +45,54 @@ function ConfBar({ value }: { value: number }) {
   );
 }
 
-export default function CriteriaPage() {
+function CriterionCard({ criterion: c, expanded, onToggle }: { criterion: Criterion; expanded: boolean; onToggle: () => void }) {
+  return (
+    <div className="bg-white border border-slate-200 shadow-sm overflow-hidden">
+      <div className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors" onClick={onToggle}>
+        <div className="flex items-center gap-4 flex-1 min-w-0">
+          <div className="bg-slate-100 text-slate-600 font-mono text-[10px] font-bold px-2 py-1 border border-slate-200 flex-shrink-0">
+            {c.id}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-bold text-[#003366] truncate">{c.label || c.description}</p>
+            <div className="flex items-center gap-2 mt-1 flex-wrap">
+              <TypeBadge type={c.type} />
+              {c.mandatory && (
+                <span className="text-[9px] font-black text-[#FF9933] uppercase tracking-widest">• Mandatory</span>
+              )}
+            </div>
+          </div>
+        </div>
+        <div className="flex items-center gap-3 ml-4 flex-shrink-0">
+          <span className="text-xs font-bold text-slate-500 hidden sm:block">{c.threshold}</span>
+          {expanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
+        </div>
+      </div>
+
+      {expanded && (
+        <div className="border-t border-slate-100 p-4 bg-slate-50 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+          <div>
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Description</p>
+            <p className="font-medium text-slate-700">{c.description}</p>
+          </div>
+          <div>
+            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Threshold</p>
+            <p className="font-bold text-[#003366]">{c.threshold}{c.unit ? ` (${c.unit})` : ""}</p>
+          </div>
+          {c.extractionConfidence !== undefined && (
+            <div className="sm:col-span-2">
+              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Extraction Confidence</p>
+              <ConfBar value={c.extractionConfidence} />
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Inner component that uses useSearchParams — must be inside Suspense
+function CriteriaContent() {
   const { isSignedIn } = useUser();
   const params = useSearchParams();
   const workspaceId = params.get("workspace");
@@ -178,48 +225,15 @@ export default function CriteriaPage() {
   );
 }
 
-function CriterionCard({ criterion: c, expanded, onToggle }: { criterion: Criterion; expanded: boolean; onToggle: () => void }) {
+// Wrap in Suspense to satisfy Next.js static prerender requirement for useSearchParams()
+export default function CriteriaPage() {
   return (
-    <div className="bg-white border border-slate-200 shadow-sm overflow-hidden">
-      <div className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 transition-colors" onClick={onToggle}>
-        <div className="flex items-center gap-4 flex-1 min-w-0">
-          <div className="bg-slate-100 text-slate-600 font-mono text-[10px] font-bold px-2 py-1 border border-slate-200 flex-shrink-0">
-            {c.id}
-          </div>
-          <div className="flex-1 min-w-0">
-            <p className="text-sm font-bold text-[#003366] truncate">{c.label || c.description}</p>
-            <div className="flex items-center gap-2 mt-1 flex-wrap">
-              <TypeBadge type={c.type} />
-              {c.mandatory && (
-                <span className="text-[9px] font-black text-[#FF9933] uppercase tracking-widest">• Mandatory</span>
-              )}
-            </div>
-          </div>
-        </div>
-        <div className="flex items-center gap-3 ml-4 flex-shrink-0">
-          <span className="text-xs font-bold text-slate-500 hidden sm:block">{c.threshold}</span>
-          {expanded ? <ChevronUp className="w-4 h-4 text-slate-400" /> : <ChevronDown className="w-4 h-4 text-slate-400" />}
-        </div>
+    <Suspense fallback={
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-slate-200 border-t-[#FF9933] rounded-full animate-spin" />
       </div>
-
-      {expanded && (
-        <div className="border-t border-slate-100 p-4 bg-slate-50 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
-          <div>
-            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Description</p>
-            <p className="font-medium text-slate-700">{c.description}</p>
-          </div>
-          <div>
-            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1">Threshold</p>
-            <p className="font-bold text-[#003366]">{c.threshold}{c.unit ? ` (${c.unit})` : ""}</p>
-          </div>
-          {c.extractionConfidence !== undefined && (
-            <div className="sm:col-span-2">
-              <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-2">Extraction Confidence</p>
-              <ConfBar value={c.extractionConfidence} />
-            </div>
-          )}
-        </div>
-      )}
-    </div>
+    }>
+      <CriteriaContent />
+    </Suspense>
   );
 }

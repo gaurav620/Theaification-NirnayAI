@@ -2,9 +2,8 @@
 const nextConfig = {
   reactStrictMode: true,
   allowedDevOrigins: ["127.0.0.1"],
-  experimental: {
-    serverBodySizeLimit: '20mb',
-  },
+  serverExternalPackages: [],
+  experimental: {},
 };
 
 export default nextConfig;
