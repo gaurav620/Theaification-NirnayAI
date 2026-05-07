@@ -2,10 +2,12 @@
 
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 import { cn } from "@/lib/utils";
 import { useUser } from "@clerk/nextjs";
+import { useTranslation } from "@/lib/translations";
+import { useBodyTranslate } from "@/lib/use-body-translate";
 import { RetroGrid } from "@/components/ui/retro-grid";
 import { LightRays } from "@/components/ui/light-rays";
 import { FlickeringGrid } from "@/components/ui/flickering-grid";
@@ -32,6 +34,9 @@ import {
   FileSearch,
   BarChart3,
   Cpu,
+  Menu,
+  X,
+  ArrowUp,
 } from "lucide-react";
 
 const notices = [
@@ -41,20 +46,20 @@ const notices = [
   "New tender templates available for download in Resources section",
 ];
 
-const NoticeTicker = () => {
+const NoticeTicker = ({ t }: { t: (key: string) => string }) => {
   // Add first notice at end for seamless loop
   const loopNotices = [...notices, notices[0]];
 
   return (
-    <div className="bg-[#003366] text-white py-3">
-      <div className="max-w-5xl mx-auto px-6 flex items-center gap-4">
-        <span className="text-xs font-semibold bg-white/10 px-2.5 py-1 rounded shrink-0">
-          Notice
+    <div className="bg-[#003366] text-white py-2 md:py-3">
+      <div className="max-w-5xl mx-auto px-4 md:px-6 flex items-center gap-3 md:gap-4">
+        <span className="text-[10px] md:text-xs font-semibold bg-white/10 px-2 py-0.5 md:px-2.5 md:py-1 rounded shrink-0">
+          {t("notice.label")}
         </span>
-        <div className="h-5 overflow-hidden flex-1">
+        <div className="h-4 md:h-5 overflow-hidden flex-1">
           <div className="animate-vertical-slide">
             {loopNotices.map((notice, i) => (
-              <p key={i} className="text-sm font-normal text-white/90 h-5 leading-5">
+              <p key={i} className="text-xs md:text-sm font-normal text-white/90 h-4 md:h-5 leading-4 md:leading-5 truncate">
                 {notice}
               </p>
             ))}
@@ -67,8 +72,11 @@ const NoticeTicker = () => {
 
 export default function LandingPage() {
   const { isSignedIn } = useUser();
+  const { t, language, setLanguage } = useTranslation();
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [showDisclaimer, setShowDisclaimer] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
 
   useEffect(() => {
     const hasSeenDisclaimer = localStorage.getItem("nirnayai-disclaimer");
@@ -76,6 +84,18 @@ export default function LandingPage() {
       setShowDisclaimer(true);
     }
   }, []);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 400);
+    };
+    window.addEventListener("scroll", handleScroll);
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const handleDismissDisclaimer = () => {
     localStorage.setItem("nirnayai-disclaimer", "true");
@@ -153,51 +173,169 @@ export default function LandingPage() {
           <div className="flex items-center gap-4 text-xs font-medium text-slate-500">
             <Link href="#" className="hover:text-[#003366] transition-colors duration-200">Screen Reader Access</Link>
             <div className="flex items-center gap-2">
-              <button className="text-[#003366] font-semibold">English</button>
+              <button
+                onClick={() => setLanguage("en")}
+                className={cn(
+                  "transition-colors duration-200",
+                  language === "en" ? "text-[#003366] font-semibold" : "hover:text-[#003366]"
+                )}
+              >
+                English
+              </button>
               <span className="text-slate-300">|</span>
-              <button className="hover:text-[#003366] transition-colors duration-200">हिंदी</button>
+              <button
+                onClick={() => setLanguage("hi")}
+                className={cn(
+                  "transition-colors duration-200",
+                  language === "hi" ? "text-[#003366] font-semibold" : "hover:text-[#003366]"
+                )}
+              >
+                हिंदी
+              </button>
             </div>
           </div>
         </div>
       </div>
 
       {/* ─── Header ─── */}
-      <header className="py-5 bg-white border-b border-slate-100 relative z-50">
-        <div className="max-w-5xl mx-auto px-6 flex justify-between items-center">
-          <div className="flex items-center gap-5">
-            <div className="flex items-center gap-3">
-              <img src="/logo/Ashok_Emblem_svg.svg" alt="Emblem of India" className="h-12 w-auto dark:brightness-0 dark:invert" />
-              <img src="/logo/Central_Reserve_Police_Force_emblem.svg" alt="CRPF Emblem" className="h-12 w-auto" />
+      <header className="py-3 md:py-5 bg-white border-b border-slate-100 relative z-50">
+        <div className="max-w-5xl mx-auto px-4 md:px-6 flex justify-between items-center">
+          <div className="flex items-center gap-3 md:gap-5">
+            <div className="flex items-center gap-2 md:gap-3">
+              <img src="/logo/Ashok_Emblem_svg.svg" alt="Emblem of India" className="h-10 md:h-12 w-auto dark:brightness-0 dark:invert" />
+              <img src="/logo/Central_Reserve_Police_Force_emblem.svg" alt="CRPF Emblem" className="h-10 md:h-12 w-auto" />
             </div>
-            <div className="border-l border-slate-200 pl-5">
-              <h1 className="text-2xl font-semibold text-[#003366] tracking-tight">
-                NirnayAI
+            <div className="border-l border-slate-200 pl-3 md:pl-5">
+              <h1 className="text-xl md:text-2xl font-semibold text-[#003366] tracking-tight">
+                {t("header.title")}
               </h1>
-              <p className="text-xs font-medium text-slate-400 mt-0.5">
-                Central Reserve Police Force • MHA
+              <p className="text-[10px] md:text-xs font-medium text-slate-400 mt-0.5 hidden sm:block">
+                {t("header.subtitle")}
               </p>
             </div>
           </div>
 
+          {/* Desktop Navigation */}
           <div className="hidden lg:flex items-center gap-8">
             <nav className="flex gap-6 text-base font-medium text-slate-500">
-              <a href="#platform" className="text-[#003366] font-semibold hover:opacity-80 transition-opacity">Platform</a>
-              <a href="#process" className="hover:text-[#003366] transition-colors duration-200">Process</a>
-              <a href="#faq" className="hover:text-[#003366] transition-colors duration-200">FAQ</a>
-              <a href="#hackathon" className="hover:text-[#003366] transition-colors duration-200">Hackathon</a>
+              <a href="#platform" className="text-[#003366] font-semibold hover:opacity-80 transition-opacity">{t("nav.platform")}</a>
+              <a href="#process" className="hover:text-[#003366] transition-colors duration-200">{t("nav.process")}</a>
+              <a href="#faq" className="hover:text-[#003366] transition-colors duration-200">{t("nav.faq")}</a>
+              <a href="#hackathon" className="hover:text-[#003366] transition-colors duration-200">{t("nav.hackathon")}</a>
             </nav>
             <div className="flex items-center gap-3 pl-6 border-l border-slate-200">
               <AnimatedThemeToggler variant="circle" duration={500} className="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors" />
               <Link href={isSignedIn ? "/dashboard" : "/sign-in"} className="bg-[#003366] text-white px-5 py-2.5 text-base font-medium rounded-sm hover:bg-[#002244] transition-colors duration-200">
-                {isSignedIn ? "Dashboard" : "Sign In"}
+                {isSignedIn ? t("nav.dashboard") : t("nav.signin")}
               </Link>
             </div>
           </div>
+
+          {/* Mobile Menu Button */}
+          <div className="flex lg:hidden items-center gap-2">
+            <AnimatedThemeToggler variant="circle" duration={500} className="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors" />
+            <button
+              onClick={() => setMobileMenuOpen(true)}
+              className="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+              aria-label={t("nav.menu")}
+            >
+              <Menu className="w-6 h-6 text-[#003366]" />
+            </button>
+          </div>
         </div>
+
+        {/* Mobile Sidebar Overlay */}
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <>
+              {/* Backdrop */}
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.3 }}
+                onClick={() => setMobileMenuOpen(false)}
+                className="lg:hidden fixed inset-0 bg-black/40 backdrop-blur-sm z-40"
+              />
+              {/* Sidebar */}
+              <motion.div
+                initial={{ x: "100%" }}
+                animate={{ x: 0 }}
+                exit={{ x: "100%" }}
+                transition={{ type: "spring", damping: 25, stiffness: 200 }}
+                className="lg:hidden fixed top-0 right-0 bottom-0 w-[280px] bg-white dark:bg-zinc-900 shadow-2xl z-50 flex flex-col"
+              >
+                {/* Sidebar Header */}
+                <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-zinc-800">
+                  <span className="text-lg font-semibold text-[#003366] dark:text-white">{t("nav.menu")}</span>
+                  <button
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+                    aria-label="Close menu"
+                  >
+                    <X className="w-6 h-6 text-[#003366] dark:text-white" />
+                  </button>
+                </div>
+
+                {/* Sidebar Navigation */}
+                <nav className="flex-1 flex flex-col p-4 gap-1 overflow-y-auto">
+                  <motion.a
+                    href="#platform"
+                    onClick={() => setMobileMenuOpen(false)}
+                    whileTap={{ scale: 0.98 }}
+                    className="px-4 py-4 text-base font-medium text-[#003366] dark:text-[#FF9933] bg-slate-50 dark:bg-zinc-800/50 rounded-lg hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors flex items-center gap-3"
+                  >
+                    <span className="w-2 h-2 rounded-full bg-[#003366] dark:bg-[#FF9933]" />
+                    {t("nav.platform")}
+                  </motion.a>
+                  <motion.a
+                    href="#process"
+                    onClick={() => setMobileMenuOpen(false)}
+                    whileTap={{ scale: 0.98 }}
+                    className="px-4 py-4 text-base font-medium text-slate-600 dark:text-zinc-300 rounded-lg hover:text-[#003366] dark:hover:text-[#FF9933] hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors flex items-center gap-3"
+                  >
+                    <span className="w-2 h-2 rounded-full bg-slate-300 dark:bg-zinc-600" />
+                    {t("nav.process")}
+                  </motion.a>
+                  <motion.a
+                    href="#faq"
+                    onClick={() => setMobileMenuOpen(false)}
+                    whileTap={{ scale: 0.98 }}
+                    className="px-4 py-4 text-base font-medium text-slate-600 dark:text-zinc-300 rounded-lg hover:text-[#003366] dark:hover:text-[#FF9933] hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors flex items-center gap-3"
+                  >
+                    <span className="w-2 h-2 rounded-full bg-slate-300 dark:bg-zinc-600" />
+                    {t("nav.faq")}
+                  </motion.a>
+                  <motion.a
+                    href="#hackathon"
+                    onClick={() => setMobileMenuOpen(false)}
+                    whileTap={{ scale: 0.98 }}
+                    className="px-4 py-4 text-base font-medium text-slate-600 dark:text-zinc-300 rounded-lg hover:text-[#003366] dark:hover:text-[#FF9933] hover:bg-slate-50 dark:hover:bg-zinc-800/50 transition-colors flex items-center gap-3"
+                  >
+                    <span className="w-2 h-2 rounded-full bg-slate-300 dark:bg-zinc-600" />
+                    {t("nav.hackathon")}
+                  </motion.a>
+                </nav>
+
+                {/* Sidebar Footer */}
+                <div className="p-4 border-t border-slate-200 dark:border-zinc-800">
+                  <Link
+                    href={isSignedIn ? "/dashboard" : "/sign-in"}
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="w-full px-4 py-4 text-base font-medium text-center text-white bg-[#003366] dark:bg-[#FF9933] dark:text-[#003366] rounded-lg hover:bg-[#002244] dark:hover:bg-[#e68a2e] transition-colors flex items-center justify-center gap-2"
+                  >
+                    {isSignedIn ? t("nav.dashboard") : t("nav.signin")}
+                    <ArrowRight className="w-5 h-5" />
+                  </Link>
+                </div>
+              </motion.div>
+            </>
+          )}
+        </AnimatePresence>
       </header>
 
       {/* ─── Notice Bar ─── */}
-      <NoticeTicker />
+      <NoticeTicker t={t} />
 
       {/* ─── Hero Section ─── */}
       <section className="relative min-h-[600px] lg:min-h-[700px] flex items-center">
@@ -398,7 +536,7 @@ export default function LandingPage() {
             <div className="max-w-4xl mx-auto">
               <div className="rounded-xl overflow-hidden border border-slate-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-lg">
                 <div className="bg-[#003366] px-5 py-4 flex items-center justify-between">
-                  <span className="text-lg font-medium text-white">Watch Demo</span>
+                  <span className="text-lg font-medium text-white">{t("demo.title")}</span>
                   <PlayCircle className="h-5 w-5 text-white/70" />
                 </div>
                 <div className="aspect-video bg-zinc-950">
@@ -475,7 +613,7 @@ export default function LandingPage() {
               <div>
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-white/10 rounded mb-6">
                   <Cpu className="h-4 w-4 text-white" />
-                  <span className="text-sm font-medium text-white/90">Why NirnayAI?</span>
+                  <span className="text-sm font-medium text-white/90">{t("why.title")}</span>
                 </div>
                 <Text3DFlip
                   as="h2"
@@ -487,7 +625,7 @@ export default function LandingPage() {
                   staggerFrom="first"
                   transition={{ type: "spring", damping: 25, stiffness: 160 }}
                 >
-                  Beyond Blackbox AI. Total Traceability.
+                  {t("why.subtitle")}
                 </Text3DFlip>
                 <ViewportAnimate delay={0.4} direction="fade">
                   <p className="text-lg text-blue-100/90 leading-relaxed mb-8">
@@ -692,7 +830,7 @@ export default function LandingPage() {
               staggerFrom="first"
               transition={{ type: "spring", damping: 25, stiffness: 160 }}
             >
-              The Minds Behind NirnayAI
+              {t("team.title")}
             </Text3DFlip>
           </div>
           <ViewportStagger className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6" delay={0.2} staggerDelay={0.1}>
@@ -897,7 +1035,7 @@ export default function LandingPage() {
             </div>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-8 md:gap-12">
               <div>
-                <h6 className="text-sm font-semibold text-[#003366] dark:text-zinc-300 mb-3">Resources</h6>
+                <h6 className="text-sm font-semibold text-[#003366] dark:text-zinc-300 mb-3">{t("footer.resources")}</h6>
                 <ul className="text-sm text-slate-500 dark:text-zinc-500 space-y-2">
                   <li><Link href="#" className="hover:text-[#003366] dark:hover:text-zinc-300 transition-colors">CVC Manual</Link></li>
                   <li><Link href="#" className="hover:text-[#003366] dark:hover:text-zinc-300 transition-colors">Officer Docs</Link></li>
@@ -905,7 +1043,7 @@ export default function LandingPage() {
                 </ul>
               </div>
               <div>
-                <h6 className="text-sm font-semibold text-[#003366] dark:text-zinc-300 mb-3">Legal</h6>
+                <h6 className="text-sm font-semibold text-[#003366] dark:text-zinc-300 mb-3">{t("footer.legal")}</h6>
                 <ul className="text-sm text-slate-500 dark:text-zinc-500 space-y-2">
                   <li><Link href="#" className="hover:text-[#003366] dark:hover:text-zinc-300 transition-colors">Privacy Policy</Link></li>
                   <li><Link href="#" className="hover:text-[#003366] dark:hover:text-zinc-300 transition-colors">Data Retention</Link></li>
@@ -923,17 +1061,50 @@ export default function LandingPage() {
               © 2026 NirnayAI Platform | Ministry of Home Affairs
             </p>
             <div className="flex gap-6 text-sm text-[#003366] dark:text-zinc-400">
-              <span className="cursor-pointer hover:text-[#FF9933] dark:hover:text-[#FF9933] transition-colors">Hindi</span>
-              <span className="cursor-pointer hover:text-[#FF9933] dark:hover:text-[#FF9933] transition-colors">English</span>
+              <button
+                onClick={() => setLanguage("hi")}
+                className={cn(
+                  "cursor-pointer transition-colors",
+                  language === "hi" ? "text-[#FF9933] font-semibold" : "hover:text-[#FF9933] dark:hover:text-[#FF9933]"
+                )}
+              >
+                {t("footer.hindi")}
+              </button>
+              <button
+                onClick={() => setLanguage("en")}
+                className={cn(
+                  "cursor-pointer transition-colors",
+                  language === "en" ? "text-[#FF9933] font-semibold" : "hover:text-[#FF9933] dark:hover:text-[#FF9933]"
+                )}
+              >
+                {t("footer.english")}
+              </button>
             </div>
           </div>
           <div className="pt-4 text-center">
             <p className="text-sm text-slate-500 dark:text-zinc-500">
-              Made by <a href="https://theaification.com/" target="_blank" rel="noopener noreferrer" className="text-[#003366] dark:text-zinc-400 hover:text-[#FF9933] dark:hover:text-[#FF9933] transition-colors font-medium">TheAIFication</a>
+              {t("footer.madeby")} <a href="https://theaification.com/" target="_blank" rel="noopener noreferrer" className="text-[#003366] dark:text-zinc-400 hover:text-[#FF9933] dark:hover:text-[#FF9933] transition-colors font-medium">TheAIFication</a>
             </p>
           </div>
         </div>
       </footer>
+
+      {/* ─── Scroll to Top Button ─── */}
+      <AnimatePresence>
+        {showScrollTop && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            transition={{ duration: 0.2 }}
+            onClick={scrollToTop}
+            className="fixed bottom-6 right-6 z-50 w-12 h-12 bg-[#003366] dark:bg-[#FF9933] text-white dark:text-[#003366] rounded-full shadow-lg hover:bg-[#002244] dark:hover:bg-[#e68a2e] transition-colors flex items-center justify-center"
+            aria-label="Scroll to top"
+          >
+            <ArrowUp className="w-5 h-5" />
+          </motion.button>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import {
   FileText, Plus, Folder, Trash2, X, UploadCloud, CheckCircle2,
   Clock, AlertCircle, File, Image as ImageIcon, Send, ChevronRight, ChevronDown, ChevronLeft, User, Shield, Eye, Lock,
-  Search, Copy, Check, Loader2, XCircle
+  Search, Copy, Check, Loader2, XCircle, Menu
 } from 'lucide-react';
 import { UserButton } from "@clerk/nextjs";
 import { DotPattern } from "@/components/ui/dot-pattern";
@@ -622,9 +622,9 @@ const TenderOverviewView = ({ currentFile, data, updateData, setUploadModalConfi
 
   return (
     <div className="flex-1 flex flex-col h-full bg-transparent relative overflow-hidden">
-      <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-10 pb-40 scroll-smooth [scrollbar-gutter:stable]">
+      <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-4 sm:p-6 lg:p-10 pb-40 scroll-smooth [scrollbar-gutter:stable]">
         <div className="max-w-4xl mx-auto">
-          <div className="mb-10 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-10 relative overflow-hidden group shadow-sm rounded-lg">
+          <div className="mb-10 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 sm:p-8 lg:p-10 relative overflow-hidden group shadow-sm rounded-lg">
             {currentFile.tenderStatus === 'ready' ? (
               <div className="inline-flex items-center gap-2 bg-green-50 dark:bg-green-900/60 text-green-800 dark:text-green-300 border border-green-200 dark:border-green-800 text-xs font-black uppercase px-4 py-1.5 rounded-full tracking-widest mb-6 animate-bounce-subtle">
                 <CheckCircle2 className="w-4 h-4" />
@@ -655,43 +655,43 @@ const TenderOverviewView = ({ currentFile, data, updateData, setUploadModalConfi
             <div className="mb-6 bg-[#003366]/[0.03] dark:bg-white/5 border border-[#003366]/20 dark:border-white/10 p-5">
               <div className="flex items-center gap-2 mb-3">
                 <Shield className="w-3.5 h-3.5 text-[#003366] dark:text-[#FF9933]" />
-                <span className="text-[10px] font-black text-[#003366] dark:text-white uppercase tracking-[0.2em]">Tender Summary</span>
+                <span className="text-sm font-black text-[#003366] dark:text-white uppercase tracking-[0.2em]">Tender Summary</span>
                 {(currentFile.tenderOverview as any)?.tenderNumber && (
-                  <span className="ml-auto text-[9px] font-mono text-slate-500 dark:text-slate-400">
+                  <span className="ml-auto text-xs font-mono text-slate-500 dark:text-slate-400">
                     Ref: {(currentFile.tenderOverview as any).tenderNumber}
                   </span>
                 )}
               </div>
               {currentFile.tenderOverview.summary && (
-                <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed mb-3">{currentFile.tenderOverview.summary}</p>
+                <p className="text-sm text-slate-700 dark:text-slate-300 leading-relaxed mb-4">{currentFile.tenderOverview.summary}</p>
               )}
-              <div className="grid grid-cols-3 gap-3 mb-3">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-3">
                 {(currentFile.tenderOverview as any)?.tenderType && (
-                  <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-2.5">
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Type</p>
-                    <p className="text-xs font-bold text-[#003366] dark:text-white">{(currentFile.tenderOverview as any).tenderType}</p>
+                  <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3">
+                    <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Type</p>
+                    <p className="text-sm font-bold text-[#003366] dark:text-white">{(currentFile.tenderOverview as any).tenderType}</p>
                   </div>
                 )}
                 {(currentFile.tenderOverview as any)?.lastDate && (
-                  <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-2.5">
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Last Date</p>
-                    <p className="text-xs font-bold text-[#003366] dark:text-white">{(currentFile.tenderOverview as any).lastDate}</p>
+                  <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3">
+                    <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">Last Date</p>
+                    <p className="text-sm font-bold text-[#003366] dark:text-white">{(currentFile.tenderOverview as any).lastDate}</p>
                   </div>
                 )}
                 {(currentFile.tenderOverview as any)?.emd && (
-                  <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-2.5">
-                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">EMD</p>
-                    <p className="text-xs font-bold text-[#003366] dark:text-white">{(currentFile.tenderOverview as any).emd}</p>
+                  <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-3">
+                    <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-1">EMD</p>
+                    <p className="text-sm font-bold text-[#003366] dark:text-white">{(currentFile.tenderOverview as any).emd}</p>
                   </div>
                 )}
               </div>
               {currentFile.tenderOverview.keyRequirements?.length > 0 && (
                 <div>
-                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Key Requirements</p>
-                  <ul className="space-y-1">
+                  <p className="text-xs font-black text-slate-400 uppercase tracking-widest mb-2">Key Requirements</p>
+                  <ul className="space-y-2">
                     {currentFile.tenderOverview.keyRequirements.map((req: string, i: number) => (
-                      <li key={i} className="flex items-start gap-2 text-xs text-slate-600 dark:text-slate-400">
-                        <span className="w-1.5 h-1.5 rounded-full bg-[#FF9933] flex-shrink-0 mt-1.5" />
+                      <li key={i} className="flex items-start gap-2 text-sm text-slate-600 dark:text-slate-400">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#FF9933] flex-shrink-0 mt-2" />
                         {req}
                       </li>
                     ))}
@@ -782,51 +782,55 @@ const TenderOverviewView = ({ currentFile, data, updateData, setUploadModalConfi
                         </button>
 
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1 flex-wrap">
-                            <span className="text-[9px] font-black text-slate-400 font-mono">{c.id}</span>
-                            {isEditable ? (
-                              <input
-                                className="text-sm font-bold text-[#003366] dark:text-white bg-transparent border-b border-transparent hover:border-slate-300 focus:border-[#003366] focus:outline-none flex-1 min-w-0"
-                                value={c.label || ''}
-                                onChange={e => updateCriterion(idx, 'label', e.target.value)}
-                                placeholder="Criterion name…"
-                              />
-                            ) : (
-                              <span className="text-sm font-bold text-[#003366] dark:text-white">{c.label}</span>
-                            )}
-                            <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full border tracking-widest ${typeCls}`}>
-                              {c.type || 'general'}
-                            </span>
-                            {c.mandatory && <span className="text-[9px] font-black text-[#FF9933] uppercase tracking-widest">● Mandatory</span>}
+                          <div className="flex items-start gap-2 mb-2">
+                            <span className="text-xs font-black text-slate-400 font-mono mt-1 shrink-0">{c.id}</span>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2 flex-wrap">
+                                {isEditable ? (
+                                  <input
+                                    className="text-base font-bold text-[#003366] dark:text-white bg-transparent border-b border-transparent hover:border-slate-300 focus:border-[#003366] focus:outline-none flex-1 min-w-0"
+                                    value={c.label || ''}
+                                    onChange={e => updateCriterion(idx, 'label', e.target.value)}
+                                    placeholder="Criterion name…"
+                                  />
+                                ) : (
+                                  <span className="text-base font-bold text-[#003366] dark:text-white">{c.label}</span>
+                                )}
+                                <span className={`text-xs font-black uppercase px-2 py-0.5 rounded-full border tracking-widest shrink-0 ${typeCls}`}>
+                                  {c.type || 'general'}
+                                </span>
+                                {c.mandatory && <span className="text-xs font-black text-[#FF9933] uppercase tracking-widest shrink-0">● Mandatory</span>}
+                              </div>
+                            </div>
                           </div>
 
                           {isEditable ? (
                             <textarea
-                              className="w-full text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded p-2 mt-1 resize-none focus:outline-none focus:border-[#003366]"
+                              className="w-full text-sm text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded p-2 mt-1 resize-none focus:outline-none focus:border-[#003366]"
                               rows={2}
                               value={c.description || ''}
                               onChange={e => updateCriterion(idx, 'description', e.target.value)}
                               placeholder="Full criterion description…"
                             />
                           ) : (
-                            <p className="text-xs text-slate-600 dark:text-slate-400 mt-0.5">{c.description}</p>
+                            <p className="text-sm text-slate-600 dark:text-slate-400 mt-0.5">{c.description}</p>
                           )}
 
                           <div className="flex items-center gap-3 mt-2">
-                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Threshold:</span>
+                            <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Threshold:</span>
                             {isEditable ? (
                               <input
-                                className="text-xs font-bold text-[#003366] dark:text-[#FF9933] bg-transparent border-b border-transparent hover:border-slate-300 focus:border-[#003366] focus:outline-none"
+                                className="text-sm font-bold text-[#003366] dark:text-[#FF9933] bg-transparent border-b border-transparent hover:border-slate-300 focus:border-[#003366] focus:outline-none"
                                 value={c.threshold || ''}
                                 onChange={e => updateCriterion(idx, 'threshold', e.target.value)}
                                 placeholder="e.g. ₹10 Cr, 3 years…"
                               />
                             ) : (
-                              <span className="text-xs font-bold text-[#003366] dark:text-[#FF9933]">{c.threshold}</span>
+                              <span className="text-sm font-bold text-[#003366] dark:text-[#FF9933]">{c.threshold}</span>
                             )}
                             {isEditable && (
                               <select
-                                className="text-[9px] font-black uppercase bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 py-1 rounded focus:outline-none ml-2"
+                                className="text-xs font-black uppercase bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2 py-1 rounded focus:outline-none ml-2"
                                 value={c.type || 'technical'}
                                 onChange={e => updateCriterion(idx, 'type', e.target.value)}
                               >
@@ -841,7 +845,7 @@ const TenderOverviewView = ({ currentFile, data, updateData, setUploadModalConfi
                         {isEditable && (
                           <button
                             onClick={() => removeCriterion(idx)}
-                            className="text-slate-300 hover:text-red-500 transition-colors flex-shrink-0 mt-1"
+                            className="text-slate-300 hover:text-red-500 transition-colors flex-shrink-0 self-start pt-0.5"
                             title="Remove criterion"
                           >
                             <X className="w-4 h-4" />
@@ -855,17 +859,17 @@ const TenderOverviewView = ({ currentFile, data, updateData, setUploadModalConfi
             )}
 
             {currentFile.tenderStatus === 'clarifying' && !isChatLoading && (
-              <div className="mt-4 flex items-center justify-between">
+              <div className="mt-4 flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:justify-between">
                 <button
                   onClick={addCriterion}
-                  className="flex items-center gap-2 text-xs font-black text-slate-400 hover:text-[#003366] dark:hover:text-[#FF9933] uppercase tracking-widest transition-colors border border-dashed border-slate-300 dark:border-slate-700 px-4 py-2 rounded-md"
+                  className="flex items-center justify-center gap-2 text-xs font-black text-slate-400 hover:text-[#003366] dark:hover:text-[#FF9933] uppercase tracking-widest transition-colors border border-dashed border-slate-300 dark:border-slate-700 px-4 py-3 sm:py-2 rounded-md"
                 >
                   <Plus className="w-4 h-4" /> Add Criterion
                 </button>
                 <button
                   onClick={handleConfirmCriteria}
                   disabled={isConfirming || activeCriteria.length === 0}
-                  className="flex items-center gap-3 bg-[#003366] dark:bg-[#FF9933] text-white dark:text-[#003366] px-8 py-3 text-xs font-black uppercase tracking-widest hover:bg-[#002244] dark:hover:bg-[#FF9933]/90 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm rounded-md"
+                  className="flex items-center justify-center gap-3 bg-[#003366] dark:bg-[#FF9933] text-white dark:text-[#003366] px-4 sm:px-8 py-3 text-xs font-black uppercase tracking-widest hover:bg-[#002244] dark:hover:bg-[#FF9933]/90 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm rounded-md"
                 >
                   {isConfirming ? (
                     <>
@@ -997,17 +1001,17 @@ const BidderView = ({ currentFile, currentBidder, data, updateData, setUploadMod
 
   if (!hasDocs) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center text-center p-10 bg-white dark:bg-slate-900 relative">
+      <div className="flex-1 flex flex-col items-center justify-center text-center p-6 sm:p-10 bg-white dark:bg-slate-900 relative">
         <div className="mb-4 text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">{currentBidder.name}</div>
-        <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-6">
-          <Folder className="w-10 h-10 text-slate-300" />
+        <div className="w-16 h-16 sm:w-20 sm:h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-6">
+          <Folder className="w-8 h-8 sm:w-10 sm:h-10 text-slate-300" />
         </div>
-        <h2 className="text-xl font-black text-[#003366] dark:text-white uppercase tracking-wider mb-2">No documents uploaded for this bidder yet.</h2>
-        <p className="text-slate-500 font-medium max-w-md mb-8">
+        <h2 className="text-lg sm:text-xl font-black text-[#003366] dark:text-white uppercase tracking-wider mb-2">No documents uploaded for this bidder yet.</h2>
+        <p className="text-slate-500 font-medium max-w-md mb-8 text-sm">
           Upload technical bids, financial statements, and compliance certificates for evaluation.
         </p>
         <button
-          className="bg-[#003366] dark:bg-[#FF9933] text-white px-8 py-4 text-xs font-black uppercase tracking-widest hover:bg-[#002244] dark:hover:bg-[#e68a2e] transition-all shadow-sm rounded-md flex items-center gap-2"
+          className="bg-[#003366] dark:bg-[#FF9933] text-white px-6 sm:px-8 py-3 sm:py-4 text-xs font-black uppercase tracking-widest hover:bg-[#002244] dark:hover:bg-[#e68a2e] transition-all shadow-sm rounded-md flex items-center gap-2 w-full sm:w-auto justify-center"
           onClick={() => setUploadModalConfig({ type: 'bidder', targetId: currentBidder.id })}
         >
           <Plus className="w-4 h-4" /> Add Documents
@@ -1081,26 +1085,26 @@ const BidderView = ({ currentFile, currentBidder, data, updateData, setUploadMod
   if (res.overallVerdict === 'Clearly Not Eligible') { riskLevel = "High Risk"; riskColor = "bg-red-500"; riskWidth = "90%"; }
 
   return (
-    <div className="flex-1 flex flex-col h-full bg-transparent overflow-y-auto p-10 [scrollbar-gutter:stable]">
+    <div className="flex-1 flex flex-col h-full bg-transparent overflow-y-auto p-4 sm:p-6 lg:p-10 [scrollbar-gutter:stable]">
       <div className="max-w-5xl mx-auto w-full">
-        <div className="flex justify-between items-start mb-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start gap-4 mb-8">
           <div>
-            <h2 className="text-4xl font-black text-[#003366] dark:text-white uppercase tracking-tighter leading-tight mb-2">
+            <h2 className="text-3xl sm:text-4xl font-black text-[#003366] dark:text-white uppercase tracking-tighter leading-tight mb-2">
               {currentBidder.name}
             </h2>
-            <p className="text-sm font-bold text-slate-400 uppercase tracking-widest">
-              {currentBidder.docs.length} Documents • Evaluation Complete
+            <p className="text-sm text-slate-500 dark:text-slate-400 uppercase tracking-wide">
+              Bidder • {currentBidder.docs.length} documents
             </p>
           </div>
           <button
-            className="bg-white dark:bg-slate-800 border-2 border-[#003366] dark:border-[#FF9933] text-[#003366] dark:text-[#FF9933] px-6 py-3 text-xs font-black uppercase tracking-widest hover:bg-[#003366] dark:hover:bg-[#FF9933] hover:text-white dark:hover:text-white transition-all shadow-sm flex items-center gap-2 rounded-md"
+            className="bg-white dark:bg-slate-800 border-2 border-[#003366] dark:border-[#FF9933] text-[#003366] dark:text-[#FF9933] px-6 py-3 text-xs font-black uppercase tracking-widest hover:bg-[#003366] dark:hover:bg-[#FF9933] hover:text-white dark:hover:text-white transition-all shadow-sm flex items-center justify-center gap-2 rounded-md w-full sm:w-auto"
             onClick={() => setUploadModalConfig({ type: 'bidder', targetId: currentBidder.id })}
           >
             <Plus className="w-4 h-4" /> Add Docs
           </button>
         </div>
 
-        <div className={`p-6 border-2 ${bannerBg} flex items-center gap-4 mb-10 animate-[slideDownFade_0.3s_ease-out]`}>
+        <div className={`p-4 sm:p-6 border-2 ${bannerBg} flex flex-col sm:flex-row items-start sm:items-center gap-4 mb-10 animate-[slideDownFade_0.3s_ease-out]`}>
           {bannerIcon}
           <div>
             <div className={`text-xs font-black uppercase tracking-widest mb-1 ${bannerTextColor}`}>
@@ -1146,24 +1150,24 @@ const BidderView = ({ currentFile, currentBidder, data, updateData, setUploadMod
               if (c.verdict === 'Manual Review') verdictChip = <span className="bg-amber-100 text-amber-800 text-[10px] font-black uppercase px-2 py-1 rounded-full tracking-widest border border-amber-200">⚠ Manual Review</span>;
 
               return (
-                <div key={c.id} className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden transition-all shadow-sm">
+                <div key={c.id} className="border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 overflow-hidden transition-all shadow-sm rounded-lg">
                   <div 
-                    className="p-4 flex items-center justify-between cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                    className="p-3 sm:p-4 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-0 sm:justify-between cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
                     onClick={() => toggleCriteria(c.id)}
                   >
-                    <div className="flex items-center gap-4 flex-1">
-                      <div className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono text-[10px] font-bold px-2 py-1 uppercase border border-slate-200 dark:border-slate-700">
+                    <div className="flex items-start sm:items-center gap-3 flex-1 min-w-0">
+                      <div className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 font-mono text-[10px] font-bold px-2 py-1 uppercase border border-slate-200 dark:border-slate-700 shrink-0">
                         {c.id}
                       </div>
-                      <div className="flex-1">
-                        <div className="text-sm font-bold text-[#003366] dark:text-white">{c.description}</div>
-                        <div className="flex items-center gap-3 mt-1">
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-bold text-[#003366] dark:text-white leading-tight">{c.description}</div>
+                        <div className="flex items-center gap-3 mt-1 flex-wrap">
                           <span className="text-[9px] font-black text-slate-400 uppercase tracking-widest">{c.category}</span>
                           {c.mandatory && <span className="text-[9px] font-black text-[#FF9933] uppercase tracking-widest">• Mandatory</span>}
                         </div>
                       </div>
                     </div>
-                    <div className="flex items-center gap-4 ml-4">
+                    <div className="flex items-center gap-3 sm:gap-4 sm:ml-4 self-end sm:self-auto">
                       {verdictChip}
                       <ChevronDown className={`w-4 h-4 text-slate-400 transition-transform ${isExpanded ? 'rotate-180' : ''}`} />
                     </div>
@@ -1335,10 +1339,10 @@ const DocumentPreviewModal = ({ previewDoc, setPreviewDoc }: any) => {
 
   return (
     <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
-      <div className="bg-slate-50 w-full max-w-6xl h-[92vh] shadow-2xl flex flex-col animate-[scaleIn_0.2s_ease-out] overflow-hidden">
+      <div className="bg-slate-50 w-full max-w-6xl h-[92vh] shadow-2xl flex flex-col animate-[scaleIn_0.2s_ease-out] overflow-hidden rounded-xl">
 
         {/* Header */}
-        <div className="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center flex-shrink-0">
+        <div className="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center flex-shrink-0 rounded-t-xl">
           <div className="flex items-center gap-4">
             <div className="w-10 h-10 bg-slate-100 flex items-center justify-center">
               {getDocIcon(previewDoc.type)}
@@ -1361,12 +1365,12 @@ const DocumentPreviewModal = ({ previewDoc, setPreviewDoc }: any) => {
               <a
                 href={fileUrl}
                 download={previewDoc.name}
-                className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest px-3 py-1.5 bg-slate-100 text-slate-600 hover:bg-[#003366] hover:text-white transition-all"
+                className="flex items-center gap-1.5 text-[10px] font-black uppercase tracking-widest px-3 py-1.5 bg-slate-100 text-slate-600 hover:bg-[#003366] hover:text-white transition-all rounded-md"
               >
                 Download
               </a>
             )}
-            <button onClick={() => setPreviewDoc(null)} className="text-slate-400 hover:text-red-500 bg-slate-100 p-2 ml-2">
+            <button onClick={() => setPreviewDoc(null)} className="text-slate-400 hover:text-red-500 bg-slate-100 p-2 ml-2 rounded-md">
               <X className="w-5 h-5" />
             </button>
           </div>
@@ -1702,16 +1706,16 @@ const CreateBidderModal = ({ isCreateBidderModalOpen, setIsCreateBidderModalOpen
   );
 };
 
-const DashboardLayout = ({ children, data, updateData, setCurrentFileId, setCurrentBidderId }: any) => (
+const DashboardLayout = ({ children, data, updateData, setCurrentFileId, setCurrentBidderId, mobileSidebarOpen, setMobileSidebarOpen }: any) => (
   <div className="h-screen flex flex-col bg-slate-50 dark:bg-zinc-950 overflow-hidden font-sans">
     {/* ─── Top Bar ─── */}
     <div className="bg-slate-100 dark:bg-zinc-900 text-[#003366] dark:text-slate-300 py-1.5 border-b border-slate-200 dark:border-zinc-800 flex-shrink-0">
-      <div className="px-10 flex justify-between items-center">
-        <span className="text-xs font-medium tracking-tight text-slate-500 dark:text-slate-400">
+      <div className="px-4 lg:px-10 flex justify-between items-center">
+        <span className="text-xs font-medium tracking-tight text-slate-500 dark:text-slate-400 hidden sm:block">
           Official Digital Portal of NirnayAI • Government of India
         </span>
         <div className="flex items-center gap-4 text-xs font-medium text-slate-500 dark:text-slate-400">
-          <Link href="#" className="hover:text-[#003366] dark:hover:text-[#FF9933] transition-colors duration-200">Screen Reader Access</Link>
+          <Link href="#" className="hover:text-[#003366] dark:hover:text-[#FF9933] transition-colors duration-200 hidden sm:block">Screen Reader Access</Link>
           <div className="flex items-center gap-2">
             <button className="text-[#003366] dark:text-[#FF9933] font-semibold">English</button>
             <span className="text-slate-300 dark:text-zinc-600">|</span>
@@ -1722,24 +1726,33 @@ const DashboardLayout = ({ children, data, updateData, setCurrentFileId, setCurr
     </div>
 
     {/* ─── Header ─── */}
-    <header className="py-3 bg-white dark:bg-zinc-950 border-b border-slate-200 dark:border-zinc-800 flex-shrink-0 relative z-10">
-      <div className="px-10 flex justify-between items-center">
-        <div className="flex items-center gap-5 cursor-pointer" onClick={() => { setCurrentFileId(null); setCurrentBidderId(null); }}>
-          <div className="flex items-center gap-3">
-            <img src="/logo/Ashok_Emblem_svg.svg" alt="Emblem of India" className="h-10 w-auto dark:brightness-0 dark:invert" />
-            <img src="/logo/Central_Reserve_Police_Force_emblem.svg" alt="CRPF Emblem" className="h-10 w-auto" />
+    <header className="py-3 bg-white dark:bg-zinc-950 border-b border-slate-200 dark:border-zinc-800 flex-shrink-0 relative z-20">
+      <div className="px-4 lg:px-10 flex justify-between items-center">
+        <div className="flex items-center gap-3 lg:gap-5 cursor-pointer" onClick={() => { setCurrentFileId(null); setCurrentBidderId(null); }}>
+          <div className="flex items-center gap-2 lg:gap-3">
+            <img src="/logo/Ashok_Emblem_svg.svg" alt="Emblem of India" className="h-8 lg:h-10 w-auto dark:brightness-0 dark:invert" />
+            <img src="/logo/Central_Reserve_Police_Force_emblem.svg" alt="CRPF Emblem" className="h-8 lg:h-10 w-auto" />
           </div>
-          <div className="border-l border-slate-200 dark:border-zinc-700 pl-5">
-            <h1 className="text-2xl font-semibold text-[#003366] dark:text-white tracking-tight">
+          <div className="border-l border-slate-200 dark:border-zinc-700 pl-3 lg:pl-5">
+            <h1 className="text-xl lg:text-2xl font-semibold text-[#003366] dark:text-white tracking-tight">
               NirnayAI
             </h1>
-            <p className="text-xs font-medium text-slate-400 dark:text-zinc-400 mt-0.5">
+            <p className="text-xs font-medium text-slate-400 dark:text-zinc-400 mt-0.5 hidden sm:block">
               Central Reserve Police Force • MHA
             </p>
           </div>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 lg:gap-4">
+          {/* Mobile sidebar toggle */}
+          <button
+            onClick={() => setMobileSidebarOpen?.(!mobileSidebarOpen)}
+            className="lg:hidden p-2 rounded-md hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+            aria-label="Toggle sidebar"
+          >
+            <Menu className="w-5 h-5 text-[#003366] dark:text-[#FF9933]" />
+          </button>
+
           <AnimatedThemeToggler variant="circle" duration={500} className="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors" />
 
           <div className="text-right hidden sm:block pl-4 border-l border-slate-200 dark:border-zinc-700">
@@ -1830,14 +1843,25 @@ const getStatusChip = (status: FileStatus) => {
   }
 };
 
-const WorkspaceSidebar = ({ currentFile, currentBidderId, setCurrentFileId, setCurrentBidderId, setUploadModalConfig, setIsCreateBidderModalOpen, setPreviewDoc }: any) => {
+const WorkspaceSidebar = ({ currentFile, currentBidderId, setCurrentFileId, setCurrentBidderId, setUploadModalConfig, setIsCreateBidderModalOpen, setPreviewDoc, onNavigate }: any) => {
   if (!currentFile) return null;
   const isTenderReady = currentFile.tenderStatus === 'ready';
+
+  const handleBackToFiles = () => {
+    setCurrentFileId(null);
+    setCurrentBidderId(null);
+    onNavigate?.();
+  };
+
+  const handleBidderClick = (bidderId: string) => {
+    setCurrentBidderId(bidderId);
+    onNavigate?.();
+  };
 
   return (
     <div className="w-72 bg-slate-50 dark:bg-slate-950 border-r border-slate-200 dark:border-slate-800 flex flex-col h-full overflow-y-auto flex-shrink-0">
       <div className="p-4 border-b border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 sticky top-0 z-10">
-        <div className="flex items-center gap-2 text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest cursor-pointer hover:text-[#003366] dark:hover:text-[#FF9933] transition-colors" onClick={() => { setCurrentFileId(null); setCurrentBidderId(null); }}>
+        <div className="flex items-center gap-2 text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest cursor-pointer hover:text-[#003366] dark:hover:text-[#FF9933] transition-colors" onClick={handleBackToFiles}>
           <ChevronLeft className="w-4 h-4" /> Back to Files
         </div>
         <h2 className="mt-3 text-sm font-black text-[#003366] dark:text-white uppercase tracking-wide truncate" title={currentFile.name}>
@@ -1876,7 +1900,7 @@ const WorkspaceSidebar = ({ currentFile, currentBidderId, setCurrentFileId, setC
         </div>
         
         <button
-          className="w-full py-3 border-2 border-dashed border-slate-300 dark:border-slate-800 text-xs font-black text-[#003366] dark:text-[#FF9933] uppercase tracking-widest hover:border-[#003366] dark:hover:border-[#FF9933] hover:bg-white dark:hover:bg-slate-900 transition-all flex items-center justify-center gap-2 active:scale-[0.98] rounded-md"
+          className="w-full py-3 border-2 border-dashed border-slate-300 dark:border-slate-800 text-xs font-black text-[#003366] dark:text-[#FF9933] uppercase tracking-widest hover:border-[#003366] dark:hover:border-[#FF9933] hover:bg-[#003366]/5 dark:hover:bg-[#FF9933]/10 transition-all flex items-center justify-center gap-2 active:scale-[0.98] rounded-lg"
           onClick={() => setUploadModalConfig({ type: 'tender', targetId: currentFile.id })}
         >
           <Plus className="w-4 h-4" /> Add Tender Docs
@@ -1902,13 +1926,13 @@ const WorkspaceSidebar = ({ currentFile, currentBidderId, setCurrentFileId, setC
               const isComplete = bidder.docs.length > 0 && !isScanning;
               
               return (
-                <div 
-                  key={bidder.id} 
-                  className={`flex items-center justify-between p-3 border transition-all cursor-pointer hover:bg-slate-50 dark:hover:bg-slate-800 ${currentBidderId === bidder.id ? 'bg-[#003366] dark:bg-[#FF9933] text-white border-[#003366] dark:border-[#FF9933] scale-[1.02]' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-[#003366] dark:hover:border-[#FF9933] text-slate-800 dark:text-slate-200'}`}
-                  onClick={() => setCurrentBidderId(bidder.id)}
+                <div
+                  key={bidder.id}
+                  className={`flex items-center justify-between p-3 border transition-all cursor-pointer rounded-lg ${currentBidderId === bidder.id ? 'bg-[#003366] dark:bg-[#FF9933] text-white border-[#003366] dark:border-[#FF9933] scale-[1.02] hover:bg-[#003366] dark:hover:bg-[#FF9933]' : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-[#003366] dark:hover:border-[#FF9933] hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-800 dark:text-slate-200'}`}
+                  onClick={() => handleBidderClick(bidder.id)}
                 >
                   <div className="flex items-center gap-2 min-w-0">
-                    <Folder className={`w-4 h-4 ${currentBidderId === bidder.id ? 'text-[#FF9933] dark:text-[#003366]' : 'text-slate-400 dark:text-slate-600'}`} />
+                    <Folder className={`w-4 h-4 ${currentBidderId === bidder.id ? 'text-[#FF9933] dark:text-white' : 'text-slate-400 dark:text-slate-600'}`} />
                     <span className="text-[11px] font-black truncate" title={bidder.name}>{bidder.name}</span>
                   </div>
                   <div className="flex items-center gap-2">
@@ -1923,7 +1947,7 @@ const WorkspaceSidebar = ({ currentFile, currentBidderId, setCurrentFileId, setC
         </div>
 
         <button
-          className="w-full py-3 border-2 border-dashed border-slate-300 dark:border-slate-800 text-xs font-black text-[#003366] dark:text-[#FF9933] uppercase tracking-widest hover:border-[#003366] dark:hover:border-[#FF9933] hover:bg-white dark:hover:bg-slate-900 transition-all flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-30 rounded-md"
+          className="w-full py-3 border-2 border-dashed border-slate-300 dark:border-slate-800 text-xs font-black text-[#003366] dark:text-[#FF9933] uppercase tracking-widest hover:border-[#003366] dark:hover:border-[#FF9933] hover:bg-[#003366]/5 dark:hover:bg-[#FF9933]/10 transition-all flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-30 rounded-lg"
           onClick={() => setIsCreateBidderModalOpen(true)}
           disabled={!isTenderReady}
         >
@@ -1994,29 +2018,14 @@ const WorkspaceRightPanel = ({ currentFile }: { currentFile: FileWorkspace | nul
               </div>
             </div>
           )}
-          {currentFile.tenderStatus === 'error' && (
-            <div className="flex items-center gap-2 text-xs font-bold text-red-600">
-              <AlertCircle className="w-4 h-4" /> ML Pipeline Error
-            </div>
-          )}
-          {currentFile.tenderStatus === 'clarifying' && (
-            <div className="flex items-center gap-2 text-xs font-bold text-amber-600">
-              <AlertCircle className="w-4 h-4" /> Criteria Review
-            </div>
-          )}
-          {currentFile.tenderStatus === 'ready' && (
-            <div className="flex items-center gap-2 text-xs font-bold text-green-700">
-              <CheckCircle2 className="w-4 h-4" /> Ready for Evaluation
-            </div>
-          )}
         </div>
 
         {itemsNeedingReview > 0 && (
-          <div className="bg-amber-50 border border-amber-200 p-6 flex items-start gap-3">
-            <AlertCircle className="w-4 h-4 text-amber-600 flex-shrink-0 mt-0.5" />
+          <div className="bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700/50 p-5 flex items-start gap-3 rounded-lg">
+            <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
             <div>
-              <h4 className="text-[10px] font-black text-amber-800 uppercase tracking-widest mb-1">Action Required</h4>
-              <p className="text-xs text-amber-700 font-medium leading-relaxed">
+              <h4 className="text-xs font-black text-amber-800 dark:text-amber-300 uppercase tracking-widest mb-1.5">Action Required</h4>
+              <p className="text-sm text-amber-700 dark:text-amber-400 font-medium leading-relaxed">
                 {itemsNeedingReview} items need manual review across bidders.
               </p>
             </div>
@@ -2037,6 +2046,7 @@ export default function NirnayAI() {
   const [uploadModalConfig, setUploadModalConfig] = useState<{ type: 'tender' | 'bidder', targetId: string } | null>(null);
   const [isCreateBidderModalOpen, setIsCreateBidderModalOpen] = useState(false);
   const [previewDoc, setPreviewDoc] = useState<Doc | null>(null);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   useBodyScrollLock(isCreateFileModalOpen || !!uploadModalConfig || isCreateBidderModalOpen || !!previewDoc);
 
@@ -2133,6 +2143,8 @@ export default function NirnayAI() {
         updateData={updateData} 
         setCurrentFileId={setCurrentFileId} 
         setCurrentBidderId={setCurrentBidderId}
+        mobileSidebarOpen={mobileSidebarOpen}
+        setMobileSidebarOpen={setMobileSidebarOpen}
       >
         {!currentFileId ? (
           <HomeGrid 
@@ -2144,15 +2156,25 @@ export default function NirnayAI() {
           />
         ) : (
           <>
-            <WorkspaceSidebar 
-              currentFile={currentFile} 
-              currentBidderId={currentBidderId} 
-              setCurrentFileId={setCurrentFileId} 
-              setCurrentBidderId={setCurrentBidderId}
-              setUploadModalConfig={setUploadModalConfig}
-              setIsCreateBidderModalOpen={setIsCreateBidderModalOpen}
-              setPreviewDoc={setPreviewDoc}
-            />
+            {/* Mobile Sidebar Overlay */}
+            {mobileSidebarOpen && (
+              <div 
+                className="fixed inset-0 bg-black/40 z-30 lg:hidden"
+                onClick={() => setMobileSidebarOpen(false)}
+              />
+            )}
+            <div className={`${mobileSidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0 fixed lg:static inset-y-0 left-0 z-40 w-72 transition-transform duration-300 ease-in-out`}>
+              <WorkspaceSidebar 
+                currentFile={currentFile} 
+                currentBidderId={currentBidderId} 
+                setCurrentFileId={setCurrentFileId} 
+                setCurrentBidderId={setCurrentBidderId}
+                setUploadModalConfig={setUploadModalConfig}
+                setIsCreateBidderModalOpen={setIsCreateBidderModalOpen}
+                setPreviewDoc={setPreviewDoc}
+                onNavigate={() => setMobileSidebarOpen(false)}
+              />
+            </div>
             {currentBidderId ? (
               <BidderView 
                 currentFile={currentFile} 

@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { ClerkProvider } from "@clerk/nextjs";
 import { ThemeProvider } from "@/components/theme-provider";
+import { TranslationProvider } from "@/lib/translations";
 import "./globals.css";
 import { Geist } from "next/font/google";
 import { cn } from "@/lib/utils";
@@ -26,7 +27,9 @@ export default function RootLayout({ children }: Readonly<{ children: ReactNode 
         </head>
         <body>
           <ThemeProvider attribute="class" defaultTheme="light" enableSystem disableTransitionOnChange>
-            {children}
+            <TranslationProvider>
+              {children}
+            </TranslationProvider>
           </ThemeProvider>
         </body>
       </html>
