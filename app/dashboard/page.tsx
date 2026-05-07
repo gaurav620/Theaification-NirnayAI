@@ -66,6 +66,10 @@ interface TenderOverviewData {
   tenderType: string;
   estimatedBidders: string;
   extractedCriteria?: any[];
+  tenderNumber?: string;
+  lastDate?: string;
+  emd?: string;
+  ocrWarning?: boolean;
 }
 
 interface Criterion {
@@ -323,6 +327,84 @@ const TenderOverviewView = ({ currentFile, data, updateData, setUploadModalConfi
     setEditingCriteria([...base, { id: newId, label: '', description: '', threshold: '', mandatory: true, type: 'technical' }]);
   };
 
+  const handleReExtractCriteria = async () => {
+    if (!currentFile || isChatLoading) return;
+    setIsChatLoading(true);
+    try {
+      const { processDocumentML, updateDocumentText, updateWorkspace } = await import('@/lib/api-client');
+      const textParts: string[] = [];
+
+      for (const d of currentFile.tenderDocs) {
+        const isImage = /\.(png|jpe?g|bmp|tiff|gif)$/i.test(d.name);
+        // Use stored text if available; otherwise re-OCR from IndexedDB
+        const storedText = (d.extractedText || '').trim();
+        if (storedText.length > 100) {
+          textParts.push(`Filename: ${d.name}\nContent: ${storedText.substring(0, 40000)}`);
+          continue;
+        }
+        if (isImage) continue; // skip images for criteria extraction
+        const idbFile = await getFileIDB(d.id).catch(() => null);
+        if (!idbFile) continue;
+        try {
+          const mlResult = await processDocumentML(idbFile);
+          const t = (mlResult.full_text || mlResult.text || '').trim();
+          if (t.length > 100) {
+            const safeText = t.length > 800_000 ? t.slice(0, 800_000) : t;
+            textParts.push(`Filename: ${d.name}\nContent: ${safeText.substring(0, 40000)}`);
+            await updateDocumentText(currentFile.id, d.id, safeText).catch(() => {});
+            updateData((prev: any) => ({
+              ...prev,
+              files: prev.files.map((f: any) => f.id !== currentFile.id ? f : {
+                ...f,
+                tenderDocs: f.tenderDocs.map((td: any) => td.id === d.id ? { ...td, extractedText: safeText } : td),
+              }),
+            }));
+          }
+        } catch { /* skip */ }
+      }
+
+      if (!textParts.length) {
+        alert('Could not extract text from any uploaded tender document. Please upload a text-searchable PDF.');
+        return;
+      }
+
+      const documentsText = textParts.join('\n\n---\n\n');
+
+      const systemPrompt = `You are NirnayAI, a government procurement analysis assistant. Extract a detailed tender overview from the provided document text. Return ONLY valid JSON, no markdown fences: {"summary": "2-3 sentences describing tender subject, issuing authority, and key scope", "keyRequirements": ["req 1", "req 2", "req 3", "req 4"], "criteriaCount": 8, "tenderType": "Goods|Services|Works", "estimatedBidders": "10-25", "tenderNumber": "tender ref number if found", "lastDate": "submission deadline if found", "emd": "EMD amount if found"}`;
+      const overviewText = await callAnthropicAPI(systemPrompt, `Tender documents content:\n${documentsText}`, data.isTestMode);
+      const overviewData = parseJSONResponse<TenderOverviewData>(overviewText) || {};
+
+      const criteriaPrompt = `You are NirnayAI, a government procurement AI. Extract ALL eligibility criteria from the tender document text below. Return ONLY a valid JSON array with no markdown fences, no explanation text: [{"id":"C1","label":"Short Name","description":"Full criterion text from the document","threshold":"Exact value stated in the document","mandatory":true,"type":"financial|technical|compliance|documentation"}]. Extract EXACT thresholds (e.g. "Rs 5 crore", "ISO 9001:2015", "3 completed orders"). Extract 5-12 criteria.`;
+      const criteriaText = await callAnthropicAPI(criteriaPrompt, `Tender document:\n${documentsText}`, data.isTestMode);
+      let parsedCriteria: any[] = parseJSONResponse<any[]>(criteriaText) || [];
+      if (!Array.isArray(parsedCriteria)) parsedCriteria = [];
+
+      const HALLUCINATION_MARKERS = ['unable to extract', 'not available', 'document text not available', 'not found in document'];
+      const cleanedCriteria = parsedCriteria.map((c: any, i: number) => ({
+        ...c,
+        id: c.id || `C${i + 1}`,
+        label: c.label || c.description?.substring(0, 50) || `Criterion ${i + 1}`,
+        mandatory: c.mandatory !== false,
+        threshold: HALLUCINATION_MARKERS.some(m => (c.threshold || '').toLowerCase().includes(m)) ? '' : (c.threshold || ''),
+      }));
+
+      const updatedOverview = { ...(overviewData || {}), extractedCriteria: cleanedCriteria, ocrWarning: false };
+      await updateWorkspace(currentFile.id, { tenderOverview: updatedOverview, tenderStatus: 'clarifying' });
+      updateData((prev: any) => ({
+        ...prev,
+        files: prev.files.map((f: any) => f.id === currentFile.id
+          ? { ...f, tenderOverview: updatedOverview, tenderStatus: 'clarifying' }
+          : f),
+      }));
+      setEditingCriteria(null);
+    } catch (e: any) {
+      console.error('Re-extract failed', e);
+      alert(`Re-extraction failed: ${e.message || 'Unknown error'}`);
+    } finally {
+      setIsChatLoading(false);
+    }
+  };
+
   useEffect(() => {
     setTimeout(() => {
       if (chatContainerRef.current) {
@@ -352,9 +434,39 @@ const TenderOverviewView = ({ currentFile, data, updateData, setUploadModalConfi
 
       const fetchInitialSetup = async () => {
         try {
-          // ── Guard: no usable text extracted (scanned / encrypted PDF) ──────
-          if (!documentsText) {
-            // Surface informative criteria stubs so officer can fill manually
+          // ── Guard: no usable text in state — try IndexedDB files before showing stubs ──
+          let effectiveDocumentsText = documentsText;
+          if (!effectiveDocumentsText) {
+            const { processDocumentML } = await import('@/lib/api-client');
+            const textParts: string[] = [];
+            for (const d of currentFile.tenderDocs) {
+              const isImage = /\.(png|jpe?g|bmp|tiff|gif)$/i.test(d.name);
+              const idbFile = await getFileIDB(d.id).catch(() => null);
+              if (!idbFile) continue;
+              try {
+                const mlResult = await processDocumentML(idbFile);
+                const t = (mlResult.full_text || mlResult.text || '').trim();
+                if (t.length > 100) {
+                  textParts.push(`Filename: ${d.name}\nContent: ${t.substring(0, 40000)}`);
+                  // Persist back to DB + state so future runs have it
+                  const { updateDocumentText } = await import('@/lib/api-client');
+                  const safeText = t.length > 800_000 ? t.slice(0, 800_000) : t;
+                  await updateDocumentText(currentFile.id, d.id, safeText).catch(() => {});
+                  updateData((prev: any) => ({
+                    ...prev,
+                    files: prev.files.map((f: any) => f.id !== currentFile.id ? f : {
+                      ...f,
+                      tenderDocs: f.tenderDocs.map((td: any) => td.id === d.id ? { ...td, extractedText: safeText } : td),
+                    }),
+                  }));
+                }
+              } catch { /* OCR failed for this file — skip */ }
+            }
+            effectiveDocumentsText = textParts.join('\n\n---\n\n');
+          }
+
+          if (!effectiveDocumentsText) {
+            // All files failed OCR — surface stubs for manual entry
             const fallbackCriteria = [
               { id: 'C1', label: 'Annual Turnover', description: 'Minimum annual turnover — please enter threshold from tender.', threshold: '', mandatory: true, type: 'financial' },
               { id: 'C2', label: 'Prior Experience', description: 'Years of relevant experience — please enter threshold from tender.', threshold: '', mandatory: true, type: 'technical' },
@@ -384,6 +496,8 @@ const TenderOverviewView = ({ currentFile, data, updateData, setUploadModalConfi
           }
 
           // Step 1: Generate tender overview
+          const systemPrompt = `You are NirnayAI, a government procurement analysis assistant. Extract a detailed tender overview from the provided document text. Return ONLY valid JSON, no markdown fences: {"summary": "2-3 sentences describing tender subject, issuing authority, and key scope", "keyRequirements": ["req 1", "req 2", "req 3", "req 4"], "criteriaCount": 8, "tenderType": "Goods|Services|Works", "estimatedBidders": "10-25", "tenderNumber": "tender ref number if found", "lastDate": "submission deadline if found", "emd": "EMD amount if found"}`;
+          const overviewText = await callAnthropicAPI(systemPrompt, `Tender documents content:\n${effectiveDocumentsText}`, data.isTestMode);
           const systemPrompt = `You are NirnayAI, a government procurement analysis assistant. Generate a realistic tender overview based on the provided document text. Return ONLY valid JSON, no markdown fences: {"summary": "2-3 sentences", "keyRequirements": ["req 1", "req 2"], "criteriaCount": 8, "tenderType": "Goods|Services|Works", "estimatedBidders": "10-25"}`;
           const overviewText = await callAnthropicAPI(systemPrompt, `Tender documents content:\n${documentsText}`);
           const overviewData = parseJSONResponse<TenderOverviewData>(overviewText);
@@ -538,20 +652,79 @@ const TenderOverviewView = ({ currentFile, data, updateData, setUploadModalConfi
             </div>
           </div>
 
-          {/* OCR Warning Banner — shown when document was unreadable (scanned/encrypted PDF) */}
-          {(currentFile.tenderOverview as any)?.ocrWarning && (
-            <div className="mb-6 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 p-4 flex items-start gap-3">
-              <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="text-xs font-black text-amber-800 dark:text-amber-300 uppercase tracking-widest mb-1">
-                  Scanned / Image PDF — OCR Could Not Extract Text
-                </p>
-                <p className="text-xs text-amber-700 dark:text-amber-400">
-                  The uploaded PDF appears to be scanned or image-based. Criteria below are template stubs —{' '}
-                  <strong>please enter the correct thresholds from the tender document</strong> before confirming.
-                  For better results, re-upload a text-searchable PDF or use an OCR tool first.
-                </p>
+          {/* Tender Summary Card — extracted from document */}
+          {currentFile.tenderOverview && !((currentFile.tenderOverview as any)?.ocrWarning) && (
+            <div className="mb-6 bg-[#003366]/[0.03] dark:bg-white/5 border border-[#003366]/20 dark:border-white/10 p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <Shield className="w-3.5 h-3.5 text-[#003366] dark:text-[#FF9933]" />
+                <span className="text-[10px] font-black text-[#003366] dark:text-white uppercase tracking-[0.2em]">Tender Summary</span>
+                {(currentFile.tenderOverview as any)?.tenderNumber && (
+                  <span className="ml-auto text-[9px] font-mono text-slate-500 dark:text-slate-400">
+                    Ref: {(currentFile.tenderOverview as any).tenderNumber}
+                  </span>
+                )}
               </div>
+              {currentFile.tenderOverview.summary && (
+                <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed mb-3">{currentFile.tenderOverview.summary}</p>
+              )}
+              <div className="grid grid-cols-3 gap-3 mb-3">
+                {(currentFile.tenderOverview as any)?.tenderType && (
+                  <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-2.5">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Type</p>
+                    <p className="text-xs font-bold text-[#003366] dark:text-white">{(currentFile.tenderOverview as any).tenderType}</p>
+                  </div>
+                )}
+                {(currentFile.tenderOverview as any)?.lastDate && (
+                  <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-2.5">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">Last Date</p>
+                    <p className="text-xs font-bold text-[#003366] dark:text-white">{(currentFile.tenderOverview as any).lastDate}</p>
+                  </div>
+                )}
+                {(currentFile.tenderOverview as any)?.emd && (
+                  <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 p-2.5">
+                    <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-0.5">EMD</p>
+                    <p className="text-xs font-bold text-[#003366] dark:text-white">{(currentFile.tenderOverview as any).emd}</p>
+                  </div>
+                )}
+              </div>
+              {currentFile.tenderOverview.keyRequirements?.length > 0 && (
+                <div>
+                  <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-1.5">Key Requirements</p>
+                  <ul className="space-y-1">
+                    {currentFile.tenderOverview.keyRequirements.map((req: string, i: number) => (
+                      <li key={i} className="flex items-start gap-2 text-xs text-slate-600 dark:text-slate-400">
+                        <span className="w-1.5 h-1.5 rounded-full bg-[#FF9933] flex-shrink-0 mt-1.5" />
+                        {req}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* OCR Warning Banner — shown when text extraction failed */}
+          {(currentFile.tenderOverview as any)?.ocrWarning && (
+            <div className="mb-6 bg-amber-50 dark:bg-amber-900/20 border border-amber-300 dark:border-amber-700 p-4">
+              <div className="flex items-start gap-3 mb-3">
+                <AlertCircle className="w-5 h-5 text-amber-600 dark:text-amber-400 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <p className="text-xs font-black text-amber-800 dark:text-amber-300 uppercase tracking-widest mb-1">
+                    Scanned / Image PDF — OCR Could Not Extract Text
+                  </p>
+                  <p className="text-xs text-amber-700 dark:text-amber-400">
+                    Text could not be automatically extracted. Click <strong>Re-Extract Criteria</strong> to retry using uploaded files,
+                    or manually fill in the criteria thresholds below before confirming.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={handleReExtractCriteria}
+                disabled={isChatLoading}
+                className="text-[10px] font-black uppercase tracking-[0.15em] bg-amber-700 text-white px-4 py-2 hover:bg-amber-800 disabled:opacity-50 transition-colors"
+              >
+                {isChatLoading ? 'Extracting…' : 'Re-Extract Criteria from Files'}
+              </button>
             </div>
           )}
 
@@ -1350,17 +1523,23 @@ const UploadModal = ({ uploadModalConfig, setUploadModalConfig, currentFile, upd
             }
 
             if (isTender) {
-              // Criteria extraction only if OCR succeeded
-              if (mlResult) {
+              // Criteria extraction — skip image-only files, accumulate across docs
+              const isImageFile = /\.(png|jpe?g|bmp|tiff|gif)$/i.test(originalFile.name);
+              if (mlResult && !isImageFile) {
                 try {
                   const criteriaResult = await extractCriteriaML(originalFile);
                   const criteriaArr = Array.isArray(criteriaResult) ? criteriaResult : [];
-                  allExtractedCriteria = criteriaArr;
-                  console.log(`[ML Pipeline] Extracted ${criteriaArr.length} criteria`);
-                } catch (criteriaErr) {
-                  console.warn(`[ML Pipeline] Criteria extraction non-critical failure:`, criteriaErr);
+                  // Accumulate: keep the largest set found across docs
+                  if (criteriaArr.length > allExtractedCriteria.length) {
+                    allExtractedCriteria = criteriaArr;
+                  }
+                  console.log(`[ML Pipeline] Extracted ${criteriaArr.length} criteria from ${originalFile.name}`);
+                } catch (criteriaErr: any) {
+                  // Non-fatal: log and continue to next file
+                  console.warn(`[ML Pipeline] Criteria extraction failed for ${originalFile.name}:`, criteriaErr?.message || criteriaErr);
                 }
               }
+
             } else {
               // For bidder docs, try to extract values against stored tender criteria
               const tenderCriteria = (currentFile.tenderOverview as any)?.extractedCriteria;
@@ -1385,6 +1564,18 @@ const UploadModal = ({ uploadModalConfig, setUploadModalConfig, currentFile, upd
                 : extractedText;
               try {
                 await updateDocumentText(currentFile.id, doc.id, safeText);
+                // Propagate to React state so the criteria-extraction useEffect can read it immediately
+                updateData((prev: any) => ({
+                  ...prev,
+                  files: prev.files.map((f: any) => f.id !== currentFile.id ? f : {
+                    ...f,
+                    tenderDocs: f.tenderDocs.map((td: any) => td.id === doc.id ? { ...td, extractedText: safeText } : td),
+                    bidders: f.bidders.map((b: any) => ({
+                      ...b,
+                      docs: b.docs.map((bd: any) => bd.id === doc.id ? { ...bd, extractedText: safeText } : bd),
+                    })),
+                  }),
+                }));
               } catch (saveErr) {
                 console.warn(`[ML Pipeline] Could not persist extracted text for ${doc.id}:`, saveErr);
               }
@@ -1414,12 +1605,11 @@ const UploadModal = ({ uploadModalConfig, setUploadModalConfig, currentFile, upd
             await updateWorkspace(currentFile.id, { tenderStatus: 'error' });
           } else {
             // Save extracted criteria in tenderOverview for use during bidder evaluation
-            const updatedOverview = {
+            const updatedOverview: any = {
               ...(currentFile.tenderOverview || {}),
-              ...(allExtractedCriteria.length > 0 ? { extractedCriteria: allExtractedCriteria } : {}),
+              ...(allExtractedCriteria.length > 0 ? { extractedCriteria: allExtractedCriteria, ocrWarning: false } : {}),
             };
-            const patch: any = { tenderStatus: 'scanning' };
-            if (allExtractedCriteria.length > 0) patch.tenderOverview = updatedOverview;
+            const patch: any = { tenderStatus: 'scanning', tenderOverview: updatedOverview };
             await updateWorkspace(currentFile.id, patch);
             updateData((prev: any) => ({
               ...prev,
