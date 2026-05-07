@@ -371,11 +371,11 @@ const TenderOverviewView = ({ currentFile, data, updateData, setUploadModalConfi
       const documentsText = textParts.join('\n\n---\n\n');
 
       const systemPrompt = `You are NirnayAI, a government procurement analysis assistant. Extract a detailed tender overview from the provided document text. Return ONLY valid JSON, no markdown fences: {"summary": "2-3 sentences describing tender subject, issuing authority, and key scope", "keyRequirements": ["req 1", "req 2", "req 3", "req 4"], "criteriaCount": 8, "tenderType": "Goods|Services|Works", "estimatedBidders": "10-25", "tenderNumber": "tender ref number if found", "lastDate": "submission deadline if found", "emd": "EMD amount if found"}`;
-      const overviewText = await callAnthropicAPI(systemPrompt, `Tender documents content:\n${documentsText}`, data.isTestMode);
+      const overviewText = await callAnthropicAPI(systemPrompt, `Tender documents content:\n${documentsText}`);
       const overviewData = parseJSONResponse<TenderOverviewData>(overviewText) || {};
 
       const criteriaPrompt = `You are NirnayAI, a government procurement AI. Extract ALL eligibility criteria from the tender document text below. Return ONLY a valid JSON array with no markdown fences, no explanation text: [{"id":"C1","label":"Short Name","description":"Full criterion text from the document","threshold":"Exact value stated in the document","mandatory":true,"type":"financial|technical|compliance|documentation"}]. Extract EXACT thresholds (e.g. "Rs 5 crore", "ISO 9001:2015", "3 completed orders"). Extract 5-12 criteria.`;
-      const criteriaText = await callAnthropicAPI(criteriaPrompt, `Tender document:\n${documentsText}`, data.isTestMode);
+      const criteriaText = await callAnthropicAPI(criteriaPrompt, `Tender document:\n${documentsText}`);
       let parsedCriteria: any[] = parseJSONResponse<any[]>(criteriaText) || [];
       if (!Array.isArray(parsedCriteria)) parsedCriteria = [];
 
@@ -497,9 +497,7 @@ const TenderOverviewView = ({ currentFile, data, updateData, setUploadModalConfi
 
           // Step 1: Generate tender overview
           const systemPrompt = `You are NirnayAI, a government procurement analysis assistant. Extract a detailed tender overview from the provided document text. Return ONLY valid JSON, no markdown fences: {"summary": "2-3 sentences describing tender subject, issuing authority, and key scope", "keyRequirements": ["req 1", "req 2", "req 3", "req 4"], "criteriaCount": 8, "tenderType": "Goods|Services|Works", "estimatedBidders": "10-25", "tenderNumber": "tender ref number if found", "lastDate": "submission deadline if found", "emd": "EMD amount if found"}`;
-          const overviewText = await callAnthropicAPI(systemPrompt, `Tender documents content:\n${effectiveDocumentsText}`, data.isTestMode);
-          const systemPrompt = `You are NirnayAI, a government procurement analysis assistant. Generate a realistic tender overview based on the provided document text. Return ONLY valid JSON, no markdown fences: {"summary": "2-3 sentences", "keyRequirements": ["req 1", "req 2"], "criteriaCount": 8, "tenderType": "Goods|Services|Works", "estimatedBidders": "10-25"}`;
-          const overviewText = await callAnthropicAPI(systemPrompt, `Tender documents content:\n${documentsText}`);
+          const overviewText = await callAnthropicAPI(systemPrompt, `Tender documents content:\n${effectiveDocumentsText}`);
           const overviewData = parseJSONResponse<TenderOverviewData>(overviewText);
 
           // Step 2: Auto-extract eligibility criteria for officer review
