@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { UserButton } from "@clerk/nextjs";
 import { DotPattern } from "@/components/ui/dot-pattern";
-import { ThemeToggle } from "@/components/ui/theme-toggle";
+import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 import { cn } from "@/lib/utils";
 
 // --- Types ---
@@ -1173,7 +1173,7 @@ const Shell = ({ children, data, updateData, setCurrentFileId, setCurrentBidderI
           </button>
         </div>
         <div className="mr-2">
-          <ThemeToggle />
+          <AnimatedThemeToggler variant="circle" duration={500} className="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors" />
         </div>
         <div className="text-right hidden sm:block">
           <div className="text-xs font-bold tracking-widest uppercase">Evaluator User</div>
