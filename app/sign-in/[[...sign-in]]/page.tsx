@@ -76,6 +76,7 @@ export default function SignInPage() {
                     formFieldWarningText:
                       "text-amber-600 dark:text-amber-400 text-xs mt-1",
 
+                      
                     // Global error alert
                     alert: "rounded-lg border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/30 px-4 py-3",
                     alertText: "text-red-600 dark:text-red-400 text-sm",
