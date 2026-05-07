@@ -13,13 +13,6 @@ import {
 export default function SignupPage() {
   return (
     <div className="min-h-screen bg-[#fcfcfc] flex flex-col">
-      {/* ─── Tricolor Top ─── */}
-      <div className="gov-tricolor">
-        <div className="saffron" />
-        <div className="white" />
-        <div className="green" />
-      </div>
-
       {/* ─── Header ─── */}
       <header className="py-6 bg-white border-b border-gray-100">
         <div className="container mx-auto px-6 flex justify-between items-center">

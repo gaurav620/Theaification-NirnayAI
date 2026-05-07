@@ -151,13 +151,6 @@ export default function ReportPage() {
 
   return (
     <div className="min-h-screen bg-slate-50 print:bg-white">
-      {/* Tricolor strip */}
-      <div className="flex h-[5px] w-full">
-        <div className="bg-[#FF9933] flex-1" />
-        <div className="bg-white flex-1" />
-        <div className="bg-[#138808] flex-1" />
-      </div>
-
       {/* Header */}
       <header className="bg-[#003366] text-white px-6 py-5 border-b-2 border-[#FF9933] print:hidden">
         <div className="max-w-5xl mx-auto flex items-center justify-between">
