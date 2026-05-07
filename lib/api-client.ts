@@ -148,7 +148,8 @@ export async function processDocumentML(file: File) {
 }
 
 /**
- * Extract eligibility criteria from a tender document
+ * Extract eligibility criteria from a tender document.
+ * Throws with error.code === 'document_unreadable' for scanned/CID PDFs.
  * @param file - Tender PDF file
  */
 export async function extractCriteriaML(file: File) {
@@ -160,12 +161,22 @@ export async function extractCriteriaML(file: File) {
     method: "POST",
     body: formData,
   });
+
+  if (res.status === 422) {
+    const body = await res.json().catch(() => ({}));
+    const err = new Error(body.message || "Document text could not be extracted") as Error & { code?: string; ocr_tip?: string };
+    err.code = "document_unreadable";
+    err.ocr_tip = body.ocr_tip;
+    throw err;
+  }
+
   if (!res.ok) {
     const err = await res.json().catch(() => ({ error: "ML pipeline error" }));
     throw new Error(err.error || "Failed to extract criteria");
   }
   return res.json();
 }
+
 
 /**
  * Extract values from a bidder document against given criteria.
