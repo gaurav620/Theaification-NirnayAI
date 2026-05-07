@@ -404,7 +404,7 @@ export default function LandingPage() {
                 <div className="aspect-video bg-zinc-950">
                   {/* Demo Video Embed - Replace src with your video URL */}
                   <iframe
-                    src="https://www.youtube.com/embed/dQw4w9WgXcQ"
+                    src="https://www.youtube.com/embed/gWu1N-9XMDw"
                     title="NirnayAI Demo"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen
@@ -697,11 +697,11 @@ export default function LandingPage() {
           </div>
           <ViewportStagger className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6" delay={0.2} staggerDelay={0.1}>
             {[
-              { name: "Risha Roy", role: "DevOps Engineer", detail: "Accenture (2023 passout)", img: "/team/risha.png", linkedin: "https://www.linkedin.com/in/risha-roy/" },
-              { name: "Srijoy Bhattacharya", role: "Enterprise Backend", detail: "Accenture SAP (2024 passout)", img: "/team/srijoy.png", linkedin: "https://www.linkedin.com/in/srijoy-bhattacharya-00439821a/" },
-              { name: "Priyanshu Nayan", role: "AI / ML Engineer", detail: "Btech 4th ML/DL Focus", img: "/team/priyanshu.png", linkedin: "http://linkedin.com/in/priyanshu-nayan/" },
-              { name: "Gaurav Kumar", role: "Backend Engineer", detail: "Btech 4th, Systems Focus", img: "/team/gaurav.png", linkedin: "https://www.linkedin.com/in/gauravkumarmehta/" },
-              { name: "Shibam Mitra", role: "Frontend Engineer", detail: "2nd Year Student", img: "/team/shibam.png", linkedin: "https://www.linkedin.com/in/shibammitra/" }
+              { name: "Risha Roy", role: "DevOps Engineer", detail: "Accenture (BTech 2023 Passout)", img: "/team/risha.png", linkedin: "https://www.linkedin.com/in/risha-roy/" },
+              { name: "Srijoy Bhattacharya", role: "Enterprise Backend", detail: "Accenture SAP (BTech 2024 Passout)", img: "/team/srijoy.png", linkedin: "https://www.linkedin.com/in/srijoy-bhattacharya-00439821a/" },
+              { name: "Priyanshu Nayan", role: "AI / ML Engineer", detail: "BTech 4th year (ML/DL Focused)", img: "/team/priyanshu.png", linkedin: "http://linkedin.com/in/priyanshu-nayan/" },
+              { name: "Gaurav Kumar", role: "Backend Engineer", detail: "BTech 4th year (Systems Focused)", img: "/team/gaurav.png", linkedin: "https://www.linkedin.com/in/gauravkumarmehta/" },
+              { name: "Shibam Mitra", role: "Frontend Engineer", detail: "BTech 2nd year (UI/UX Focused)", img: "/team/shibam.png", linkedin: "https://www.linkedin.com/in/shibammitra/" }
             ].map((member, idx) => (
               <ViewportStaggerItem key={idx}>
                 <a
