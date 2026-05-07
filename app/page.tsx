@@ -404,7 +404,7 @@ export default function LandingPage() {
                 <div className="aspect-video bg-zinc-950">
                   {/* Demo Video Embed - Replace src with your video URL */}
                   <iframe
-                    src="https://www.youtube.com/embed/dQw4w9WgXcQ"
+                    src="https://www.youtube.com/embed/kvEfETbhdg8"
                     title="NirnayAI Demo"
                     allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                     allowFullScreen
