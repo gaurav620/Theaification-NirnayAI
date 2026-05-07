@@ -802,33 +802,38 @@ const BidderView = ({ currentFile, currentBidder, data, updateData, setUploadMod
 
 const DocumentPreviewModal = ({ previewDoc, setPreviewDoc }: any) => {
   if (!previewDoc) return null;
+
+  const sizeMB = (previewDoc.size / 1024 / 1024).toFixed(2);
+  const ext = previewDoc.name?.split('.').pop()?.toUpperCase() || 'FILE';
+  const hasText = previewDoc.extractedText && previewDoc.extractedText.trim().length > 0;
+
   return (
     <div className="fixed inset-0 bg-black/80 z-[60] flex items-center justify-center p-4 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
-      <div className="bg-slate-50 dark:bg-slate-950 w-full max-w-5xl h-[85vh] shadow-2xl flex flex-col animate-[scaleIn_0.2s_ease-out]">
-        <div className="bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 px-6 py-4 flex justify-between items-center flex-shrink-0">
+      <div className="bg-slate-50 w-full max-w-5xl h-[85vh] shadow-2xl flex flex-col animate-[scaleIn_0.2s_ease-out]">
+        <div className="bg-white border-b border-slate-200 px-6 py-4 flex justify-between items-center flex-shrink-0">
           <div className="flex items-center gap-4">
-            <div className="w-10 h-10 bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
+            <div className="w-10 h-10 bg-slate-100 flex items-center justify-center">
               {getDocIcon(previewDoc.type)}
             </div>
             <div>
-              <h3 className="text-sm font-black text-[#003366] dark:text-white truncate max-w-lg">{previewDoc.name}</h3>
-              <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+              <h3 className="text-sm font-black text-[#003366] truncate max-w-lg">{previewDoc.name}</h3>
+              <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
                 {(previewDoc.size / 1024 / 1024).toFixed(2)} MB • Uploaded {new Date(previewDoc.uploadedAt).toLocaleString()}
               </p>
             </div>
           </div>
-          <button onClick={() => setPreviewDoc(null)} className="text-slate-400 hover:text-red-500 bg-slate-100 dark:bg-slate-800 p-2 transition-colors"><X className="w-5 h-5"/></button>
+          <button onClick={() => setPreviewDoc(null)} className="text-slate-400 hover:text-red-500 bg-slate-100 p-2"><X className="w-5 h-5"/></button>
         </div>
-        <div className="flex-1 p-8 bg-slate-100 dark:bg-slate-950 overflow-y-auto flex justify-center items-start">
-          <div className="w-full max-w-3xl bg-white dark:bg-slate-900 shadow-sm border border-slate-200 dark:border-slate-800 min-h-full p-12 relative flex flex-col items-center justify-center">
+        <div className="flex-1 p-8 bg-slate-100 overflow-y-auto flex justify-center items-start">
+          <div className="w-full max-w-3xl bg-white shadow-sm border border-slate-200 min-h-full p-12 relative flex flex-col items-center justify-center">
             <div className="text-center opacity-30 select-none">
-              <FileText className="w-24 h-24 mx-auto mb-6 text-slate-400 dark:text-slate-600" />
-              <div className="text-2xl font-black uppercase tracking-widest text-slate-400 dark:text-slate-600 mb-2">Simulated Preview</div>
-              <p className="text-sm font-bold text-slate-400 dark:text-slate-600">File contents are not stored in window.storage.</p>
+              <FileText className="w-24 h-24 mx-auto mb-6 text-slate-400" />
+              <div className="text-2xl font-black uppercase tracking-widest text-slate-400 mb-2">Simulated Preview</div>
+              <p className="text-sm font-bold text-slate-400">File contents are not stored in window.storage.</p>
             </div>
-            <div className="absolute inset-12 pointer-events-none opacity-5 dark:opacity-10">
+            <div className="absolute inset-12 pointer-events-none opacity-5">
               {[...Array(20)].map((_, i) => (
-                <div key={i} className="h-4 bg-black dark:bg-white mb-4 rounded-full w-full" style={{ width: `${Math.random() * 40 + 60}%` }} />
+                <div key={i} className="h-4 bg-black mb-4 rounded-full w-full" style={{ width: `${Math.random() * 40 + 60}%` }} />
               ))}
             </div>
           </div>
@@ -837,6 +842,7 @@ const DocumentPreviewModal = ({ previewDoc, setPreviewDoc }: any) => {
     </div>
   );
 };
+
 
 const CreateFileModal = ({ isCreateFileModalOpen, setIsCreateFileModalOpen, handleCreateFile }: any) => {
   if (!isCreateFileModalOpen) return null;
@@ -925,7 +931,7 @@ const UploadModal = ({ uploadModalConfig, setUploadModalConfig, currentFile, upd
     setUploadModalConfig(null);
 
     try {
-      const { addTenderDocuments, addBidderDocuments, updateDocumentStatus, processDocumentML, extractCriteriaML, extractValuesML, updateWorkspace } = await import('@/lib/api-client');
+      const { addTenderDocuments, addBidderDocuments, updateDocumentStatus, processDocumentML, extractCriteriaML, extractValuesML } = await import('@/lib/api-client');
       let createdDocs;
       if (isTender) {
         createdDocs = await addTenderDocuments(currentFile.id, payloadDocs);
@@ -969,11 +975,9 @@ const UploadModal = ({ uploadModalConfig, setUploadModalConfig, currentFile, upd
           await updateDocumentStatus(currentFile.id, doc.id, 'scanning');
 
           try {
-            let extractedText = "";
-
             if (isTender) {
               console.log(`[ML Pipeline] Processing tender doc: ${originalFile.name}`);
-              const mlResult = await processDocumentML(originalFile);
+              mlResult = await processDocumentML(originalFile);
               console.log(`[ML Pipeline] OCR complete for: ${originalFile.name}`, mlResult);
               extractedText = mlResult.extracted_text || "";
 
@@ -988,7 +992,7 @@ const UploadModal = ({ uploadModalConfig, setUploadModalConfig, currentFile, upd
               }
             } else {
               console.log(`[ML Pipeline] Processing bidder doc: ${originalFile.name}`);
-              const mlResult = await processDocumentML(originalFile);
+              mlResult = await processDocumentML(originalFile);
               console.log(`[ML Pipeline] OCR complete for: ${originalFile.name}`, mlResult);
               extractedText = mlResult.extracted_text || "";
 
@@ -1008,19 +1012,7 @@ const UploadModal = ({ uploadModalConfig, setUploadModalConfig, currentFile, upd
               }
             }
 
-            // Save extractedText to UI state
-            updateData((prev: any) => ({
-              ...prev,
-              files: prev.files.map((f: any) => {
-                if (f.id !== currentFile.id) return f;
-                if (isTender) {
-                  return { ...f, tenderDocs: f.tenderDocs.map((d: any) => d.id === doc.id ? { ...d, extractedText } : d) };
-                } else {
-                  return { ...f, bidders: f.bidders.map((b: any) => b.id === tId ? { ...b, docs: b.docs.map((d: any) => d.id === doc.id ? { ...d, extractedText } : d) } : b) };
-                }
-              })
-            }));
-
+            // Step 2: ML processing complete — mark as 'complete'
             updateData((prev: any) => updateDocStatus(prev, currentFile.id, configType, tId, doc.id, 'complete'));
             await updateDocumentStatus(currentFile.id, doc.id, 'complete');
             console.log(`[ML Pipeline] ✓ Document processed: ${originalFile.name}`);
