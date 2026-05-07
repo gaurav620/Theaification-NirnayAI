@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { Shield, CheckCircle2, AlertCircle, ChevronDown, ChevronUp, ArrowLeft } from "lucide-react";
@@ -45,7 +45,25 @@ function ConfBar({ value }: { value: number }) {
   );
 }
 
-export default function CriteriaPage() {
+// Loading fallback for Suspense
+function CriteriaLoading() {
+  return (
+    <div className="min-h-screen bg-slate-50 flex flex-col">
+      <header className="bg-[#003366] text-white px-6 py-4 border-b-2 border-[#FF9933]">
+        <div className="max-w-5xl mx-auto flex items-center justify-between">
+          <span className="font-black text-lg uppercase tracking-tight">NirnayAI</span>
+          <span className="text-xs font-bold text-white/60 uppercase tracking-widest">Criteria Review</span>
+        </div>
+      </header>
+      <main className="flex-1 max-w-5xl mx-auto w-full px-6 py-10 flex items-center justify-center">
+        <div className="w-12 h-12 border-4 border-slate-200 border-t-[#FF9933] rounded-full animate-spin" />
+      </main>
+    </div>
+  );
+}
+
+// Main content component that uses useSearchParams
+function CriteriaPageContent() {
   const { isSignedIn } = useUser();
   const params = useSearchParams();
   const workspaceId = params.get("workspace");
@@ -221,5 +239,14 @@ function CriterionCard({ criterion: c, expanded, onToggle }: { criterion: Criter
         </div>
       )}
     </div>
+  );
+}
+
+// Default export wrapped in Suspense boundary
+export default function CriteriaPage() {
+  return (
+    <Suspense fallback={<CriteriaLoading />}>
+      <CriteriaPageContent />
+    </Suspense>
   );
 }

@@ -2,8 +2,11 @@
 const nextConfig = {
   reactStrictMode: true,
   allowedDevOrigins: ["127.0.0.1"],
-  experimental: {
-    serverBodySizeLimit: '20mb',
+  // Body size limit for API routes (moved from experimental)
+  api: {
+    bodyParser: {
+      sizeLimit: '20mb',
+    },
   },
 };
 
