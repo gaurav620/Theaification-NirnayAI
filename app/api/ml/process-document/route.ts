@@ -47,7 +47,27 @@ export async function POST(request: Request) {
 
     if (action === "extract-criteria") {
       // ML returns a flat MLCriterion[] — transform to frontend Criteria[]
-      const mlCriteria = await extractCriteria(buffer, file.name);
+      // Handle 422 (document unreadable) separately to give actionable UI feedback
+      const res = await fetch(`${(await import("@/lib/ml-pipeline")).ML_PIPELINE_URL}/extract-criteria`, {
+        method: "POST",
+        body: (() => { const fd = new FormData(); fd.append("file", new Blob([buffer]), file.name); return fd; })(),
+      });
+      if (res.status === 422) {
+        const errBody = await res.json().catch(() => ({}));
+        return NextResponse.json(
+          {
+            error: "document_unreadable",
+            message: errBody?.detail?.message || "Document text could not be extracted",
+            ocr_tip: errBody?.detail?.ocr_tip || "Please upload a text-searchable PDF",
+          },
+          { status: 422 }
+        );
+      }
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(`ML extract-criteria failed (${res.status}): ${errText}`);
+      }
+      const mlCriteria: MLCriterion[] = await res.json();
       const criteria: Criteria[] = mlCriteria.map(mlCriterionToFrontend);
       return NextResponse.json(criteria);
     } else {
