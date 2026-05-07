@@ -1,28 +1,28 @@
 "use client";
 
-import { useEffect } from "react";
 import { SignUp } from "@clerk/nextjs";
+import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 import Link from "next/link";
 import { RetroGrid } from "@/components/ui/retro-grid";
 
 export default function SignUpPage() {
-  // Force light mode on this page
-  useEffect(() => {
-    document.documentElement.classList.remove("dark");
-  }, []);
-
   return (
     <div className="h-screen flex overflow-hidden">
       {/* ─── Left Side: Form ─── */}
-      <div className="w-full lg:w-1/2 flex flex-col bg-white h-full overflow-hidden">
-        {/* Top bar with back button */}
-        <div className="flex items-center justify-start px-6 lg:px-10 py-5 flex-shrink-0">
+      <div className="w-full lg:w-1/2 flex flex-col bg-white dark:bg-zinc-950 h-full overflow-hidden">
+        {/* Top bar with back button and theme toggle */}
+        <div className="flex items-center justify-between px-6 lg:px-10 py-5 flex-shrink-0">
           <Link 
             href="/sign-in" 
-            className="flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-[#003366] transition-colors"
+            className="flex items-center gap-2 text-sm font-medium text-slate-500 dark:text-zinc-400 hover:text-[#003366] dark:hover:text-[#FF9933] transition-colors"
           >
             ← Already have an account? Sign in
           </Link>
+          <AnimatedThemeToggler 
+            variant="circle" 
+            duration={400} 
+            className="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors" 
+          />
         </div>
 
         {/* Form container - scrollable */}
@@ -30,32 +30,33 @@ export default function SignUpPage() {
           <div className="min-h-full flex items-center justify-center">
             <div className="w-full max-w-sm py-8">
               <SignUp 
+                fallbackRedirectUrl="/dashboard"
                 appearance={{
                   elements: {
                     rootBox: "mx-auto w-full",
-                    card: "shadow-none border border-slate-200 bg-white p-6 rounded-xl",
-                    headerTitle: "text-[#003366] font-semibold text-2xl tracking-tight mb-2 text-center",
-                    headerSubtitle: "text-slate-500 text-sm mb-6 text-center",
-                    formButtonPrimary: "bg-[#003366] hover:bg-[#002244] !rounded-lg font-medium text-sm h-11 transition-colors w-full",
-                    formFieldInput: "border border-slate-300 !rounded-lg focus:border-[#003366] focus:ring-2 focus:ring-[#003366]/20 bg-white text-slate-900 placeholder:text-slate-400 transition-all h-11 px-4",
-                    formFieldLabel: "text-sm font-medium text-slate-700 mb-1.5 block",
-                    footerActionLink: "text-[#003366] font-medium hover:underline",
-                    socialButtonsBlockButton: "!rounded-lg border border-slate-300 bg-white text-slate-700 font-medium hover:bg-slate-50 transition-colors h-11",
-                    dividerLine: "bg-slate-300",
-                    dividerText: "text-slate-500 text-xs font-medium",
-                    formFieldErrorText: "text-red-500 text-xs mt-1",
-                    formFieldSuccessText: "text-green-600 text-xs mt-1",
-                    identityPreviewEditButton: "text-[#003366]",
-                    formResendCodeLink: "text-[#003366] font-medium",
-                    otpCodeFieldInput: "!h-11 !rounded-lg bg-white border-slate-300 text-slate-900",
+                    card: "shadow-none border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-6 rounded-xl",
+                    headerTitle: "text-[#003366] dark:text-zinc-100 font-semibold text-2xl tracking-tight mb-2 text-center",
+                    headerSubtitle: "text-slate-500 dark:text-zinc-400 text-sm mb-6 text-center",
+                    formButtonPrimary: "bg-[#003366] hover:bg-[#002244] dark:bg-[#003d7a] dark:hover:bg-[#004a99] !rounded-lg font-medium text-sm h-11 transition-colors w-full",
+                    formFieldInput: "border border-slate-300 dark:border-zinc-600 !rounded-lg focus:border-[#003366] focus:ring-2 focus:ring-[#003366]/20 bg-white dark:bg-zinc-800 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 transition-all h-11 px-4",
+                    formFieldLabel: "text-sm font-medium text-slate-700 dark:text-zinc-300 mb-1.5 block",
+                    footerActionLink: "text-[#003366] dark:text-[#FF9933] font-medium hover:underline",
+                    socialButtonsBlockButton: "!rounded-lg border border-slate-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-slate-700 dark:text-white font-medium hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors h-11",
+                    dividerLine: "bg-slate-300 dark:bg-zinc-600",
+                    dividerText: "text-slate-500 dark:text-zinc-300 text-xs font-medium",
+                    formFieldErrorText: "text-red-500 text-xs mt-1 dark:text-red-400",
+                    formFieldSuccessText: "text-green-600 text-xs mt-1 dark:text-green-400",
+                    identityPreviewEditButton: "text-[#003366] dark:text-[#FF9933]",
+                    formResendCodeLink: "text-[#003366] dark:text-[#FF9933] font-medium",
+                    otpCodeFieldInput: "!h-11 !rounded-lg bg-white dark:bg-zinc-800 border-slate-300 dark:border-zinc-600 text-slate-900 dark:text-white",
                     formFieldRow: "mb-4",
                     formButtonRow: "mt-6",
                     main: "gap-5",
                     form: "gap-4",
-                    alternativeMethodsBlockButton: "border border-slate-300 bg-white text-slate-700 hover:bg-slate-50",
-                    identityPreviewText: "text-slate-700",
-                    formFieldInfoText: "text-slate-500 text-xs",
-                    formFieldWarningText: "text-amber-600 text-xs",
+                    alternativeMethodsBlockButton: "border border-slate-300 dark:border-zinc-600 bg-white dark:bg-zinc-800 text-slate-700 dark:text-white hover:bg-slate-50 dark:hover:bg-zinc-700",
+                    identityPreviewText: "text-slate-700 dark:text-zinc-300",
+                    formFieldInfoText: "text-slate-500 dark:text-zinc-300 text-xs",
+                    formFieldWarningText: "text-amber-600 dark:text-amber-400 text-xs",
                   },
                   layout: {
                     socialButtonsPlacement: "top",
@@ -68,8 +69,8 @@ export default function SignUpPage() {
         </div>
 
         {/* Footer */}
-        <div className="px-6 lg:px-10 py-5 text-center flex-shrink-0">
-          <p className="text-xs text-slate-400">
+        <div className="px-6 lg:px-10 py-5 text-center flex-shrink-0 border-t border-slate-100 dark:border-zinc-800">
+          <p className="text-xs text-slate-400 dark:text-zinc-500">
             Protected by AES-256 Encryption • GFR 2024 Compliant
           </p>
         </div>

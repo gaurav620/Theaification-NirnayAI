@@ -10,6 +10,7 @@ import { RetroGrid } from "@/components/ui/retro-grid";
 import { LightRays } from "@/components/ui/light-rays";
 import { FlickeringGrid } from "@/components/ui/flickering-grid";
 import AnimatedGridPattern from "@/components/ui/animated-grid-pattern";
+import { DotPattern } from "@/components/ui/dot-pattern";
 import { TextAnimate } from "@/components/ui/text-animate";
 import { LineShadowText } from "@/components/ui/line-shadow-text";
 import Text3DFlip from "@/components/ui/text-3d-flip";
@@ -160,13 +161,6 @@ export default function LandingPage() {
         </div>
       </div>
 
-      {/* ─── Tricolor Bar ─── */}
-      <div className="h-[3px] w-full flex">
-        <div className="flex-1 bg-[#FF9933]" />
-        <div className="flex-1 bg-white" />
-        <div className="flex-1 bg-[#138808]" />
-      </div>
-
       {/* ─── Header ─── */}
       <header className="py-5 bg-white border-b border-slate-100 relative z-50">
         <div className="max-w-5xl mx-auto px-6 flex justify-between items-center">
@@ -195,7 +189,7 @@ export default function LandingPage() {
             <div className="flex items-center gap-3 pl-6 border-l border-slate-200">
               <AnimatedThemeToggler variant="circle" duration={500} className="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors" />
               <Link href={isSignedIn ? "/dashboard" : "/sign-in"} className="bg-[#003366] text-white px-5 py-2.5 text-base font-medium rounded-sm hover:bg-[#002244] transition-colors duration-200">
-                Sign In
+                {isSignedIn ? "Dashboard" : "Sign In"}
               </Link>
             </div>
           </div>
@@ -306,7 +300,7 @@ export default function LandingPage() {
                 transition={{ delay: 1.0, duration: 0.5, ease: [0.33, 1, 0.68, 1] }}
               >
                 <Link href={isSignedIn ? "/dashboard" : "/sign-in"} className="inline-flex items-center gap-2 bg-[#003366] text-white px-6 py-3.5 text-base font-medium rounded-sm hover:bg-[#002244] transition-colors duration-200 shadow-lg">
-                  Get Started <ArrowRight className="h-5 w-5" />
+                  {isSignedIn ? "Dashboard" : "Get Started"} <ArrowRight className="h-5 w-5" />
                 </Link>
               </motion.div>
               <motion.div
@@ -314,7 +308,7 @@ export default function LandingPage() {
                 animate={{ clipPath: "inset(0 0% 0 0)" }}
                 transition={{ delay: 1.15, duration: 0.5, ease: [0.33, 1, 0.68, 1] }}
               >
-                <Link href="/dashboard" className="inline-flex items-center gap-2 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 px-6 py-3.5 text-base font-medium rounded-sm hover:border-[#003366] hover:text-[#003366] dark:hover:border-zinc-500 dark:hover:text-white transition-colors duration-200">
+                <Link href="#platform" className="inline-flex items-center gap-2 bg-white/90 dark:bg-zinc-900/90 backdrop-blur-sm border border-slate-200 dark:border-zinc-700 text-slate-700 dark:text-zinc-300 px-6 py-3.5 text-base font-medium rounded-sm hover:border-[#003366] hover:text-[#003366] dark:hover:border-zinc-500 dark:hover:text-white transition-colors duration-200">
                   View Demo
                 </Link>
               </motion.div>
@@ -633,9 +627,9 @@ export default function LandingPage() {
               <div className="flex gap-4">
                 <div className="w-1 h-auto bg-[#FF9933] rounded shrink-0" />
                 <div>
-                  <h4 className="text-base font-medium text-[#003366] dark:text-zinc-300 mb-1">Real Problem Statements</h4>
+                  <h4 className="text-base font-medium text-[#003366] dark:text-zinc-300 mb-1">Theme 3: AI-Based Tender Evaluation</h4>
                   <p className="text-sm text-slate-500 dark:text-zinc-500 leading-relaxed">
-                    Solutions built with potential for practical deployment and measurable impact.
+                    AI-Based Tender Evaluation and Eligibility Analysis for Government Procurement by CRPF.
                   </p>
                 </div>
               </div>
@@ -656,9 +650,14 @@ export default function LandingPage() {
           <div className="mt-12 pt-8 border-t border-slate-200 dark:border-zinc-800">
             <p className="text-center text-sm text-slate-500 dark:text-zinc-500 mb-6">With gratitude to our organizers</p>
             <div className="flex flex-wrap items-center justify-center gap-8 md:gap-12">
+              <a href="https://www.paniit.org/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
+                <img src="/logo/paniit_logo.png" alt="PAN IIT" className="h-14 w-auto" />
+                <span className="text-base font-medium text-slate-700 dark:text-zinc-300 hidden md:block">PanIIT</span>
+              </a>
+              <div className="hidden md:block h-8 w-px bg-slate-300 dark:bg-zinc-700" />
               <a href="https://karnataka.gov.in/english" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 hover:opacity-80 transition-opacity">
-                <img src="/logo/The_Karnataka_Government.svg" alt="Government of Karnataka" className="h-12 w-auto" />
-                <span className="text-sm font-medium text-slate-700 dark:text-zinc-300 hidden md:block">Govt. of Karnataka</span>
+                <img src="/logo/The_Karnataka_Government.svg" alt="Government of Karnataka" className="h-14 w-auto" />
+                <span className="text-base font-medium text-slate-700 dark:text-zinc-300 hidden md:block">Govt. of Karnataka</span>
               </a>
               <div className="hidden md:block h-8 w-px bg-slate-300 dark:bg-zinc-700" />
               <a href="https://www.hackerearth.com/" target="_blank" rel="noopener noreferrer" className="flex items-center hover:opacity-80 transition-opacity">
@@ -670,30 +669,22 @@ export default function LandingPage() {
       </section>
 
       {/* ─── Team Section ─── */}
-      <section className="relative py-20 lg:py-28 bg-slate-50 dark:bg-zinc-900 overflow-hidden">
-        {/* Flickering Grid Background */}
-        <FlickeringGrid 
-          className="absolute inset-0 z-0 dark:opacity-100"
-          squareSize={4}
-          gridGap={6}
-          color="#003366"
-          maxOpacity={0.15}
-          flickerChance={0.3}
+      <section className="relative py-24 lg:py-32 bg-slate-50 dark:bg-zinc-900 overflow-hidden">
+        {/* Dot Pattern Background */}
+        <DotPattern
+          className="absolute inset-0 z-0 opacity-50 dark:opacity-25 [mask-image:radial-gradient(ellipse_at_center,white,transparent_80%)]"
+          width={20}
+          height={20}
+          cx={2}
+          cy={2}
+          cr={1}
         />
-        <FlickeringGrid 
-          className="absolute inset-0 z-0 hidden dark:block"
-          squareSize={4}
-          gridGap={6}
-          color="#60a5fa"
-          maxOpacity={0.2}
-          flickerChance={0.3}
-        />
-        <div className="relative z-10 max-w-5xl mx-auto px-6">
-          <div className="text-center mb-14">
-            <p className="text-[13px] font-medium text-[#FF9933] mb-2">Team</p>
+        <div className="relative z-10 max-w-7xl mx-auto px-6">
+          <div className="text-center mb-16">
+            <p className="text-[13px] font-medium text-[#FF9933] mb-3">Team</p>
             <Text3DFlip
               as="h2"
-              className="text-2xl lg:text-3xl font-semibold justify-center"
+              className="text-3xl lg:text-4xl font-semibold justify-center"
               textClassName="text-[#003366] dark:text-white"
               flipTextClassName="text-[#003366] dark:text-white"
               rotateDirection="top"
@@ -704,26 +695,45 @@ export default function LandingPage() {
               The Minds Behind NirnayAI
             </Text3DFlip>
           </div>
-          <ViewportStagger className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4" delay={0.2} staggerDelay={0.1}>
+          <ViewportStagger className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6" delay={0.2} staggerDelay={0.1}>
             {[
-              { name: "Priyanshu Nayan", role: "Team Leader", detail: "B.Tech 4th Year", img: "/team/priyanshu.png", linkedin: "https://linkedin.com/in/priyanshu-nayan" },
-              { name: "Gaurav Kumar", role: "Core Developer", detail: "B.Tech 4th Year", img: "/team/gaurav.png", linkedin: "https://linkedin.com/in/gaurav-kumar" },
-              { name: "Shibam Mitra", role: "Full Stack Developer", detail: "B.Tech 2nd Year", img: "/team/shibam.png", linkedin: "https://linkedin.com/in/shibam-mitra" },
-              { name: "Risha Roy", role: "Industry Expert", detail: "Accenture", img: "/team/risha.png", linkedin: "https://linkedin.com/in/risha-roy" },
-              { name: "Srijoy Bhattacharya", role: "Systems Architect", detail: "Accenture, SAP", img: "/team/srijoy.png", linkedin: "https://linkedin.com/in/srijoy-bhattacharya" }
+              { name: "Risha Roy", role: "DevOps Engineer", detail: "Accenture (2023 passout)", img: "/team/risha.png", linkedin: "https://www.linkedin.com/in/risha-roy/" },
+              { name: "Srijoy Bhattacharya", role: "Enterprise Backend", detail: "Accenture SAP (2024 passout)", img: "/team/srijoy.png", linkedin: "https://www.linkedin.com/in/srijoy-bhattacharya-00439821a/" },
+              { name: "Priyanshu Nayan", role: "AI / ML Engineer", detail: "Btech 4th ML/DL Focus", img: "/team/priyanshu.png", linkedin: "http://linkedin.com/in/priyanshu-nayan/" },
+              { name: "Gaurav Kumar", role: "Backend Engineer", detail: "Btech 4th, Systems Focus", img: "/team/gaurav.png", linkedin: "https://www.linkedin.com/in/gauravkumarmehta/" },
+              { name: "Shibam Mitra", role: "Frontend Engineer", detail: "2nd Year Student", img: "/team/shibam.png", linkedin: "https://www.linkedin.com/in/shibammitra/" }
             ].map((member, idx) => (
               <ViewportStaggerItem key={idx}>
-                <a href={member.linkedin} target="_blank" rel="noopener noreferrer" className="block bg-white dark:bg-zinc-900 border border-slate-100 dark:border-zinc-800 p-5 rounded-lg text-center hover:border-[#003366]/30 dark:hover:border-zinc-700 transition-colors duration-200 group">
-                <div className="w-20 h-20 mx-auto mb-4 overflow-hidden rounded-lg bg-slate-100 dark:bg-zinc-800">
-                  <img src={member.img} alt={member.name} className="w-full h-full object-cover" />
-                </div>
-                <h4 className="text-base font-medium text-[#003366] dark:text-white mb-1 group-hover:text-[#FF9933] transition-colors">{member.name}</h4>
-                <p className="text-sm font-medium text-[#FF9933] mb-1">{member.role}</p>
-                <p className="text-xs text-slate-400 dark:text-zinc-500">{member.detail}</p>
-                <div className="mt-3 flex items-center justify-center gap-1 text-xs text-slate-400 dark:text-zinc-500 group-hover:text-[#003366] dark:group-hover:text-zinc-300 transition-colors">
-                  <ExternalLink className="h-3 w-3" />
-                  <span>LinkedIn</span>
-                </div>
+                <a
+                  href={member.linkedin}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block group relative overflow-hidden"
+                >
+                  {/* Card with transparent bg */}
+                  <div className="relative bg-transparent border-4 border-transparent transition-all duration-300 p-4 text-center h-full">
+                    {/* Image container */}
+                    <div className="relative w-full aspect-[3/4] mx-auto mb-4 overflow-hidden">
+                      <img
+                        src={member.img}
+                        alt={member.name}
+                        className="w-full h-full object-cover object-top transition-all duration-300 group-hover:scale-105 grayscale group-hover:grayscale-0"
+                      />
+                      {/* Gradient overlay on hover */}
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#003366]/10 dark:from-[#FF9933]/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                    </div>
+
+                    {/* Text content */}
+                    <h4 className="text-lg font-semibold text-[#003366] dark:text-white mb-1 group-hover:text-[#FF9933] transition-colors">{member.name}</h4>
+                    <p className="text-sm font-medium text-[#FF9933] mb-1">{member.role}</p>
+                    <p className="text-xs text-slate-500 dark:text-zinc-400">{member.detail}</p>
+
+                    {/* LinkedIn indicator */}
+                    <div className="mt-4 flex items-center justify-center gap-1.5 text-xs text-slate-400 dark:text-zinc-500 group-hover:text-[#003366] dark:group-hover:text-[#FF9933] transition-colors">
+                      <ExternalLink className="h-3.5 w-3.5" />
+                      <span className="font-medium">LinkedIn</span>
+                    </div>
+                  </div>
                 </a>
               </ViewportStaggerItem>
             ))}
@@ -746,7 +756,7 @@ export default function LandingPage() {
               staggerFrom="first"
               transition={{ type: "spring", damping: 25, stiffness: 160 }}
             >
-              What Officers Say
+              What Officers Say — Example
             </Text3DFlip>
             <ViewportAnimate delay={0.2} direction="fade">
               <p className="text-slate-500 dark:text-zinc-400 mt-3 text-base">Feedback from procurement officers using NirnayAI</p>
@@ -916,6 +926,11 @@ export default function LandingPage() {
               <span className="cursor-pointer hover:text-[#FF9933] dark:hover:text-[#FF9933] transition-colors">Hindi</span>
               <span className="cursor-pointer hover:text-[#FF9933] dark:hover:text-[#FF9933] transition-colors">English</span>
             </div>
+          </div>
+          <div className="pt-4 text-center">
+            <p className="text-sm text-slate-500 dark:text-zinc-500">
+              Made by <a href="https://theaification.com/" target="_blank" rel="noopener noreferrer" className="text-[#003366] dark:text-zinc-400 hover:text-[#FF9933] dark:hover:text-[#FF9933] transition-colors font-medium">TheAIFication</a>
+            </p>
           </div>
         </div>
       </footer>

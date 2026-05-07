@@ -1,28 +1,28 @@
 "use client";
 
-import { useEffect } from "react";
 import { SignIn } from "@clerk/nextjs";
+import { AnimatedThemeToggler } from "@/components/ui/animated-theme-toggler";
 import Link from "next/link";
 import { RetroGrid } from "@/components/ui/retro-grid";
 
 export default function SignInPage() {
-  // Force light mode on this page
-  useEffect(() => {
-    document.documentElement.classList.remove("dark");
-  }, []);
-
   return (
     <div className="h-screen flex overflow-hidden">
       {/* ─── Left Side: Form ─── */}
-      <div className="w-full lg:w-1/2 flex flex-col bg-white h-full overflow-hidden">
-        {/* Top bar with back button */}
-        <div className="flex items-center justify-start px-8 lg:px-12 py-5 flex-shrink-0">
+      <div className="w-full lg:w-1/2 flex flex-col bg-white dark:bg-zinc-950 h-full overflow-hidden">
+        {/* Top bar with back button and theme toggle */}
+        <div className="flex items-center justify-between px-8 lg:px-12 py-5 flex-shrink-0">
           <Link
             href="/"
-            className="flex items-center gap-2 text-sm font-medium text-slate-500 hover:text-[#003366] transition-colors"
+            className="flex items-center gap-2 text-sm font-medium text-slate-500 dark:text-zinc-400 hover:text-[#003366] dark:hover:text-[#FF9933] transition-colors"
           >
             ← Back to Home
           </Link>
+          <AnimatedThemeToggler
+            variant="circle"
+            duration={400}
+            className="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors"
+          />
         </div>
 
         {/* Form container - scrollable */}
@@ -30,83 +30,84 @@ export default function SignInPage() {
           <div className="min-h-full flex items-center justify-center px-8 lg:px-12 py-8">
             <div className="w-full max-w-[400px]">
               <SignIn
+                fallbackRedirectUrl="/dashboard"
                 appearance={{
                   elements: {
                     rootBox: "mx-auto w-full",
 
                     // Card with padding
-                    card: "shadow-none border border-slate-200 bg-white p-6 rounded-xl",
+                    card: "shadow-none border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-6 rounded-xl",
 
                     // Header
                     headerTitle:
-                      "text-[#003366] font-semibold text-2xl tracking-tight mb-1 text-center",
+                      "text-[#003366] dark:text-zinc-100 font-semibold text-2xl tracking-tight mb-1 text-center",
                     headerSubtitle:
-                      "text-slate-500 text-sm text-center",
+                      "text-slate-500 dark:text-zinc-400 text-sm text-center",
 
                     // Social buttons
                     socialButtonsBlockButton:
-                      "!rounded-lg border border-slate-200 bg-white text-slate-700 font-medium hover:bg-slate-50 transition-colors h-11 w-full",
+                      "!rounded-lg border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-100 font-medium hover:bg-slate-50 dark:hover:bg-zinc-700 transition-colors h-11 w-full",
                     socialButtonsBlockButtonText:
-                      "text-slate-700 font-medium text-sm",
+                      "text-slate-700 dark:text-zinc-100 font-medium text-sm",
                     socialButtons: "gap-3 mt-4",
 
                     // Divider
-                    dividerLine: "bg-slate-200",
+                    dividerLine: "bg-slate-200 dark:bg-zinc-700",
                     dividerText:
-                      "text-slate-400 text-xs font-medium px-2",
+                      "text-slate-400 dark:text-zinc-500 text-xs font-medium px-2",
                     dividerRow: "my-4",
 
                     // Fields
                     formFieldLabel:
-                      "text-sm font-medium text-slate-700 mb-1.5 block",
+                      "text-sm font-medium text-slate-700 dark:text-zinc-300 mb-1.5 block",
                     formFieldInput:
-                      "border border-slate-200 !rounded-lg focus:border-[#003366] focus:ring-2 focus:ring-[#003366]/10 bg-white text-slate-900 placeholder:text-slate-400 transition-all h-11 px-4 w-full text-sm",
+                      "border border-slate-200 dark:border-zinc-700 !rounded-lg focus:border-[#003366] focus:ring-2 focus:ring-[#003366]/10 bg-white dark:bg-zinc-800 text-slate-900 dark:text-white placeholder:text-slate-400 dark:placeholder:text-zinc-500 transition-all h-11 px-4 w-full text-sm",
                     formFieldRow: "mb-4",
                     formFieldInputShowPasswordButton:
-                      "text-slate-400 hover:text-slate-600",
+                      "text-slate-400 dark:text-zinc-500 hover:text-slate-600 dark:hover:text-zinc-300",
 
                     // Errors / success / info
                     formFieldErrorText:
-                      "text-red-500 text-xs mt-1",
+                      "text-red-500 dark:text-red-400 text-xs mt-1",
                     formFieldSuccessText:
-                      "text-green-600 text-xs mt-1",
+                      "text-green-600 dark:text-green-400 text-xs mt-1",
                     formFieldInfoText:
-                      "text-slate-500 text-xs mt-1",
+                      "text-slate-500 dark:text-zinc-400 text-xs mt-1",
                     formFieldWarningText:
-                      "text-amber-600 text-xs mt-1",
+                      "text-amber-600 dark:text-amber-400 text-xs mt-1",
 
                     // Global error alert
-                    alert: "rounded-lg border border-red-200 bg-red-50 px-4 py-3",
-                    alertText: "text-red-600 text-sm",
+                    alert: "rounded-lg border border-red-200 dark:border-red-900/50 bg-red-50 dark:bg-red-950/30 px-4 py-3",
+                    alertText: "text-red-600 dark:text-red-400 text-sm",
 
                     // Primary CTA
                     formButtonPrimary:
-                      "bg-[#003366] hover:bg-[#002244] !rounded-lg font-medium text-sm h-11 transition-colors w-full text-white shadow-sm",
+                      "bg-[#003366] hover:bg-[#002244] dark:bg-[#003d7a] dark:hover:bg-[#004a99] !rounded-lg font-medium text-sm h-11 transition-colors w-full text-white shadow-sm",
                     formButtonRow: "mt-5",
 
                     // Alternative methods
                     alternativeMethodsBlockButton:
-                      "border border-slate-200 bg-white text-slate-700 hover:bg-slate-50 !rounded-lg h-11 text-sm font-medium transition-colors w-full",
+                      "border border-slate-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-slate-700 dark:text-zinc-100 hover:bg-slate-50 dark:hover:bg-zinc-700 !rounded-lg h-11 text-sm font-medium transition-colors w-full",
 
                     // Footer links
                     footerActionLink:
-                      "text-[#003366] font-medium hover:underline text-sm",
-                    footerActionText: "text-slate-500 text-sm",
+                      "text-[#003366] dark:text-[#FF9933] font-medium hover:underline text-sm",
+                    footerActionText: "text-slate-500 dark:text-zinc-400 text-sm",
                     footer: "pt-2 pb-0",
 
                     // Identity preview
                     identityPreviewEditButton:
-                      "text-[#003366] text-sm font-medium",
+                      "text-[#003366] dark:text-[#FF9933] text-sm font-medium",
                     identityPreviewText:
-                      "text-slate-700 text-sm",
+                      "text-slate-700 dark:text-zinc-300 text-sm",
 
                     // OTP input
                     otpCodeFieldInput:
-                      "!h-11 !rounded-lg bg-white border-slate-200 text-slate-900 focus:border-[#003366] transition-all",
+                      "!h-11 !rounded-lg bg-white dark:bg-zinc-800 border-slate-200 dark:border-zinc-700 text-slate-900 dark:text-white focus:border-[#003366] transition-all",
 
                     // Resend code
                     formResendCodeLink:
-                      "text-[#003366] font-medium text-sm",
+                      "text-[#003366] dark:text-[#FF9933] font-medium text-sm",
 
                     // Layout helpers - add internal spacing
                     main: "gap-5",
@@ -123,8 +124,8 @@ export default function SignInPage() {
         </div>
 
         {/* Footer */}
-        <div className="px-8 lg:px-12 py-4 text-center flex-shrink-0 border-t border-slate-100">
-          <p className="text-xs text-slate-400">
+        <div className="px-8 lg:px-12 py-4 text-center flex-shrink-0 border-t border-slate-100 dark:border-zinc-800">
+          <p className="text-xs text-slate-400 dark:text-zinc-500">
             Protected by AES-256 Encryption • GFR 2024 Compliant
           </p>
         </div>

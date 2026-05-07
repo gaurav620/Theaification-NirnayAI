@@ -2,10 +2,10 @@
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
-import { 
+import {
   FileText, Plus, Folder, Trash2, X, UploadCloud, CheckCircle2,
   Clock, AlertCircle, File, Image as ImageIcon, Send, ChevronRight, ChevronDown, ChevronLeft, User, Shield, Eye, Lock,
-  Search, Copy, Check
+  Search, Copy, Check, Loader2, XCircle
 } from 'lucide-react';
 import { UserButton } from "@clerk/nextjs";
 import { DotPattern } from "@/components/ui/dot-pattern";
@@ -108,7 +108,6 @@ interface FileWorkspace {
 
 interface AppData {
   files: FileWorkspace[];
-  isTestMode?: boolean;
 }
 
 // --- Storage Helper ---
@@ -127,7 +126,6 @@ const getStorageData = (): AppData | null => {
   if (rawData) {
     try {
       const parsed = typeof rawData === 'string' ? JSON.parse(rawData) : rawData;
-      if (parsed.isTestMode === undefined) parsed.isTestMode = false;
       // Migrate legacy state
       if (parsed.files) {
         parsed.files = parsed.files.map((f: any) => ({
@@ -178,8 +176,7 @@ async function _mockResponse(system: string): Promise<string> {
   return "[]";
 }
 
-async function callAnthropicAPI(system: string, userMessage: string, isTestMode: boolean = false): Promise<string> {
-  if (isTestMode) return _mockResponse(system);
+async function callAnthropicAPI(system: string, userMessage: string): Promise<string> {
   try {
     const res = await fetch('/api/ml/chat', {
       method: 'POST',
@@ -388,12 +385,12 @@ const TenderOverviewView = ({ currentFile, data, updateData, setUploadModalConfi
 
           // Step 1: Generate tender overview
           const systemPrompt = `You are NirnayAI, a government procurement analysis assistant. Generate a realistic tender overview based on the provided document text. Return ONLY valid JSON, no markdown fences: {"summary": "2-3 sentences", "keyRequirements": ["req 1", "req 2"], "criteriaCount": 8, "tenderType": "Goods|Services|Works", "estimatedBidders": "10-25"}`;
-          const overviewText = await callAnthropicAPI(systemPrompt, `Tender documents content:\n${documentsText}`, data.isTestMode);
+          const overviewText = await callAnthropicAPI(systemPrompt, `Tender documents content:\n${documentsText}`);
           const overviewData = parseJSONResponse<TenderOverviewData>(overviewText);
 
           // Step 2: Auto-extract eligibility criteria for officer review
           const criteriaPrompt = `You are NirnayAI, a government procurement AI. Extract ALL eligibility criteria from the tender document text below. Return ONLY a valid JSON array with no markdown fences, no explanation text, no warnings: [{"id":"C1","label":"Short Name","description":"Full criterion text from the document","threshold":"Exact value/requirement from the document","mandatory":true,"type":"financial|technical|compliance|documentation"}]. If you cannot find a specific threshold value in the document text, set threshold to empty string \"\". Extract 5-10 criteria.`;
-          const criteriaText = await callAnthropicAPI(criteriaPrompt, `Tender document:\n${documentsText}`, data.isTestMode);
+          const criteriaText = await callAnthropicAPI(criteriaPrompt, `Tender document:\n${documentsText}`);
           let parsedCriteria: any[] = parseJSONResponse<any[]>(criteriaText) || [];
           if (!Array.isArray(parsedCriteria)) parsedCriteria = [];
 
@@ -436,24 +433,24 @@ const TenderOverviewView = ({ currentFile, data, updateData, setUploadModalConfi
       };
       fetchInitialSetup();
     }
-  }, [currentFile?.tenderStatus, currentFile?.tenderDocs, currentFile?.id, updateData, isChatLoading, data.isTestMode, extractedCriteria.length]);
+  }, [currentFile?.tenderStatus, currentFile?.tenderDocs, currentFile?.id, updateData, isChatLoading, extractedCriteria.length]);
 
 
   if (currentFile.tenderStatus === 'awaiting_docs') {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center text-center p-10 relative bg-white dark:bg-slate-900">
-        <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 rounded-full flex items-center justify-center mb-6">
-          <UploadCloud className="w-10 h-10 text-slate-300" />
+      <div className="flex-1 flex flex-col items-center justify-center text-center p-10 relative">
+        <div className="w-20 h-20 bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg flex items-center justify-center mb-6">
+          <UploadCloud className="w-10 h-10 text-slate-400 dark:text-slate-500" />
         </div>
-        <h2 className="text-xl font-black text-[#003366] uppercase tracking-wider mb-2">No Tender Documents</h2>
-        <p className="text-slate-500 font-medium max-w-md mb-8">
+        <h2 className="text-xl font-black text-[#003366] dark:text-white uppercase tracking-wider mb-2">No Tender Documents</h2>
+        <p className="text-slate-500 dark:text-slate-400 font-medium max-w-md mb-8">
           Upload the primary tender documents (NIT, RFP, Annexures) to initialize the AI analysis engine.
         </p>
-        <button 
-          className="bg-[#003366] text-white px-8 py-4 text-xs font-black uppercase tracking-[0.2em] hover:bg-[#002244] transition-all shadow-sm"
+        <button
+          className="bg-[#003366] dark:bg-[#FF9933] text-white px-8 py-4 text-xs font-black uppercase tracking-widest hover:bg-[#002244] dark:hover:bg-[#e68a2e] transition-all shadow-sm rounded-md flex items-center gap-2"
           onClick={() => setUploadModalConfig({ type: 'tender', targetId: currentFile.id })}
         >
-          Upload Documents
+          <UploadCloud className="w-4 h-4" /> Upload Documents
         </button>
       </div>
     );
@@ -461,22 +458,22 @@ const TenderOverviewView = ({ currentFile, data, updateData, setUploadModalConfi
 
   if (currentFile.tenderStatus === 'error') {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center text-center p-10 relative bg-white dark:bg-slate-900">
-        <div className="w-20 h-20 bg-red-50 dark:bg-red-900/20 border border-red-100 dark:border-red-900/30 rounded-full flex items-center justify-center mb-6">
-          <AlertCircle className="w-10 h-10 text-red-500" />
+      <div className="flex-1 flex flex-col items-center justify-center text-center p-10 relative">
+        <div className="w-20 h-20 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg flex items-center justify-center mb-6">
+          <AlertCircle className="w-10 h-10 text-red-500 dark:text-red-400" />
         </div>
-        <h2 className="text-xl font-black text-red-600 uppercase tracking-wider mb-2">Analysis Failed</h2>
-        <p className="text-red-500/80 font-medium max-w-md mb-8">
+        <h2 className="text-xl font-black text-red-600 dark:text-red-400 uppercase tracking-wider mb-2">Analysis Failed</h2>
+        <p className="text-red-500/80 dark:text-red-400/80 font-medium max-w-md mb-8">
           The ML pipeline encountered an error during processing. {currentFile.errorMessage ? `Details: ${currentFile.errorMessage}` : 'Please verify the documents and try again.'}
         </p>
-        <button 
-          className="bg-red-600 text-white px-8 py-4 text-xs font-black uppercase tracking-[0.2em] hover:bg-red-700 transition-all shadow-sm"
+        <button
+          className="bg-red-600 dark:bg-red-700 text-white px-8 py-4 text-xs font-black uppercase tracking-widest hover:bg-red-700 dark:hover:bg-red-600 transition-all shadow-sm rounded-md flex items-center gap-2"
           onClick={() => updateData((prev: any) => ({
             ...prev,
             files: prev.files.map((f: any) => f.id === currentFile.id ? { ...f, tenderStatus: 'awaiting_docs', tenderDocs: [] } : f)
           }))}
         >
-          Reset and Retry
+          <AlertCircle className="w-4 h-4" /> Reset and Retry
         </button>
       </div>
     );
@@ -484,7 +481,7 @@ const TenderOverviewView = ({ currentFile, data, updateData, setUploadModalConfi
 
   if (currentFile.tenderStatus === 'ml_processing') {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-10 relative bg-white dark:bg-slate-900">
+      <div className="flex-1 flex flex-col items-center justify-center p-10 relative">
         <div className="w-16 h-16 relative mb-6">
           <div className="absolute inset-0 border-4 border-slate-200 dark:border-slate-800 rounded-full"></div>
           <div className="absolute inset-0 border-4 border-[#FF9933] rounded-full border-t-transparent animate-spin"></div>
@@ -497,7 +494,7 @@ const TenderOverviewView = ({ currentFile, data, updateData, setUploadModalConfi
 
   if (currentFile.tenderStatus === 'scanning') {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center p-10 relative bg-white dark:bg-slate-900">
+      <div className="flex-1 flex flex-col items-center justify-center p-10 relative">
         <div className="w-16 h-16 relative mb-6">
           <div className="absolute inset-0 border-4 border-slate-200 dark:border-slate-800 rounded-full"></div>
           <div className="absolute inset-0 border-4 border-[#FF9933] rounded-full border-t-transparent animate-spin"></div>
@@ -515,40 +512,27 @@ const TenderOverviewView = ({ currentFile, data, updateData, setUploadModalConfi
     <div className="flex-1 flex flex-col h-full bg-transparent relative overflow-hidden">
       <div ref={chatContainerRef} className="flex-1 overflow-y-auto p-10 pb-40 scroll-smooth [scrollbar-gutter:stable]">
         <div className="max-w-4xl mx-auto">
-          <div className="mb-10 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-10 relative overflow-hidden group shadow-sm">
-            <div className="absolute top-0 right-0 p-6 flex gap-2">
-              {currentFile.tenderDocs.map((doc: any) => (
-                <button 
-                  key={doc.id}
-                  onClick={() => setPreviewDoc(doc)}
-                  className="w-10 h-10 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 flex items-center justify-center text-slate-400 dark:text-slate-500 hover:text-[#FF9933] hover:border-[#FF9933] hover:bg-white dark:hover:bg-slate-900 transition-all"
-                  title={`Preview ${doc.name}`}
-                >
-                  <Eye className="w-4 h-4" />
-                </button>
-              ))}
-            </div>
-
+          <div className="mb-10 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-10 relative overflow-hidden group shadow-sm rounded-lg">
             {currentFile.tenderStatus === 'ready' ? (
-              <div className="inline-flex items-center gap-2 bg-green-50 text-green-800 border border-green-200 text-[10px] font-black uppercase px-4 py-1.5 rounded-full tracking-[0.2em] mb-6 animate-bounce-subtle">
-                <CheckCircle2 className="w-3.5 h-3.5" />
+              <div className="inline-flex items-center gap-2 bg-green-50 dark:bg-green-900/60 text-green-800 dark:text-green-300 border border-green-200 dark:border-green-800 text-xs font-black uppercase px-4 py-1.5 rounded-full tracking-widest mb-6 animate-bounce-subtle">
+                <CheckCircle2 className="w-4 h-4" />
                 Green Signal Achieved
               </div>
             ) : (
-              <div className="inline-flex items-center gap-2 bg-amber-50 text-amber-800 border border-amber-200 text-[10px] font-black uppercase px-4 py-1.5 rounded-full tracking-[0.2em] mb-6">
-                <span className="w-2 h-2 bg-amber-500 rounded-full animate-pulse" />
+              <div className="inline-flex items-center gap-2 bg-amber-50 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800 text-xs font-black uppercase px-4 py-1.5 rounded-full tracking-widest mb-6">
+                <span className="w-2 h-2 bg-amber-500 dark:bg-amber-400 rounded-full animate-pulse" />
                 Criteria Review — Confirm to Proceed
               </div>
             )}
-            <h2 className="text-5xl font-black text-[#003366] dark:text-white uppercase tracking-tighter leading-tight mb-4 max-w-[80%]">
+            <h2 className="text-5xl font-black text-[#003366] dark:text-white uppercase tracking-tighter leading-tight mb-4">
               {currentFile.name}
             </h2>
             <div className="flex items-center gap-4">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+              <p className="text-sm font-medium text-slate-500 uppercase tracking-wide">
                 {new Date(currentFile.createdAt).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
               </p>
-              <div className="w-1 h-1 bg-slate-300 rounded-full" />
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+              <div className="w-1.5 h-1.5 bg-slate-300 rounded-full" />
+              <p className="text-sm font-medium text-slate-500 uppercase tracking-wide">
                 {currentFile.tenderDocs.length} Official Documents
               </p>
             </div>
@@ -579,7 +563,7 @@ const TenderOverviewView = ({ currentFile, data, updateData, setUploadModalConfi
                 {currentFile.tenderStatus === 'ready' ? 'Confirmed Criteria' : 'Review Extracted Criteria'}
               </h3>
               {currentFile.tenderStatus === 'clarifying' && !isChatLoading && (
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">
+                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
                   {activeCriteria.length} criteria found — edit if needed, then confirm
                 </span>
               )}
@@ -606,16 +590,16 @@ const TenderOverviewView = ({ currentFile, data, updateData, setUploadModalConfi
               <div className="space-y-3">
                 {activeCriteria.map((c: any, idx: number) => {
                   const typeColors: Record<string, string> = {
-                    financial: 'bg-emerald-100 text-emerald-800 border-emerald-200',
-                    technical: 'bg-blue-100 text-blue-800 border-blue-200',
-                    compliance: 'bg-purple-100 text-purple-800 border-purple-200',
-                    documentation: 'bg-slate-100 text-slate-700 border-slate-200',
+                    financial: 'bg-emerald-100 dark:bg-emerald-900/60 text-emerald-800 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800',
+                    technical: 'bg-blue-100 dark:bg-blue-900/60 text-blue-800 dark:text-blue-300 border-blue-200 dark:border-blue-800',
+                    compliance: 'bg-purple-100 dark:bg-purple-900/60 text-purple-800 dark:text-purple-300 border-purple-200 dark:border-purple-800',
+                    documentation: 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300 border-slate-200 dark:border-slate-700',
                   };
-                  const typeCls = typeColors[c.type?.toLowerCase()] || 'bg-slate-100 text-slate-600 border-slate-200';
+                  const typeCls = typeColors[c.type?.toLowerCase()] || 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700';
                   const isEditable = currentFile.tenderStatus === 'clarifying';
 
                   return (
-                    <div key={c.id || idx} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 shadow-sm">
+                    <div key={c.id || idx} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-4 shadow-sm rounded-lg">
                       <div className="flex items-start gap-3">
                         {/* Mandatory toggle */}
                         <button
@@ -703,14 +687,14 @@ const TenderOverviewView = ({ currentFile, data, updateData, setUploadModalConfi
               <div className="mt-4 flex items-center justify-between">
                 <button
                   onClick={addCriterion}
-                  className="flex items-center gap-2 text-xs font-black text-slate-400 hover:text-[#003366] dark:hover:text-[#FF9933] uppercase tracking-widest transition-colors border border-dashed border-slate-300 dark:border-slate-700 px-4 py-2"
+                  className="flex items-center gap-2 text-xs font-black text-slate-400 hover:text-[#003366] dark:hover:text-[#FF9933] uppercase tracking-widest transition-colors border border-dashed border-slate-300 dark:border-slate-700 px-4 py-2 rounded-md"
                 >
                   <Plus className="w-4 h-4" /> Add Criterion
                 </button>
                 <button
                   onClick={handleConfirmCriteria}
                   disabled={isConfirming || activeCriteria.length === 0}
-                  className="flex items-center gap-3 bg-[#003366] dark:bg-[#FF9933] text-white dark:text-[#003366] px-8 py-3 text-xs font-black uppercase tracking-widest hover:bg-[#002244] dark:hover:bg-[#FF9933]/90 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm"
+                  className="flex items-center gap-3 bg-[#003366] dark:bg-[#FF9933] text-white dark:text-[#003366] px-8 py-3 text-xs font-black uppercase tracking-widest hover:bg-[#002244] dark:hover:bg-[#FF9933]/90 transition-all disabled:opacity-40 disabled:cursor-not-allowed shadow-sm rounded-md"
                 >
                   {isConfirming ? (
                     <>
@@ -807,7 +791,7 @@ const BidderView = ({ currentFile, currentBidder, data, updateData, setUploadMod
           if (!evalData) {
             const systemPrompt = `You are NirnayAI's evaluation engine. Given the tender document text and bidder document text, simulate a realistic procurement eligibility evaluation. Generate criterion-level verdicts. Respond in this exact JSON format with no markdown: {"overallVerdict": "Clearly Eligible" | "Clearly Not Eligible" | "Requires Human Review", "criteria": [{"id": "C1", "description": "...", "category": "Financial" | "Technical" | "Compliance" | "Documentation", "mandatory": true | false, "verdict": "Eligible" | "Not Eligible" | "Manual Review" | "Not Applicable", "sourceDocument": "...", "extractedValue": "...", "reason": "...", "confidence": "High" | "Medium" | "Low"}]}`;
             const userMsg = `Tender context:\n${tenderDocsText}\n\nBidder name: ${currentBidder.name}\nBidder documents:\n${bidderDocsText}\n\nEvaluate this bidder against the tender criteria. Generate 6 to 10 criteria.`;
-            const responseText = await callAnthropicAPI(systemPrompt, userMsg, data.isTestMode);
+            const responseText = await callAnthropicAPI(systemPrompt, userMsg);
             evalData = parseJSONResponse<EvaluationResult>(responseText);
           }
 
@@ -838,7 +822,7 @@ const BidderView = ({ currentFile, currentBidder, data, updateData, setUploadMod
 
       fetchEval();
     }
-  }, [isComplete, currentBidder?.evaluationResult, currentBidder?.docs, currentBidder?.id, currentBidder?.name, currentFile?.tenderDocs, currentFile?.id, currentFile?.tenderOverview, updateData, isEvalLoading, data.isTestMode]);
+  }, [isComplete, currentBidder?.evaluationResult, currentBidder?.docs, currentBidder?.id, currentBidder?.name, currentFile?.tenderDocs, currentFile?.id, currentFile?.tenderOverview, updateData, isEvalLoading]);
 
   if (!hasDocs) {
     return (
@@ -851,11 +835,11 @@ const BidderView = ({ currentFile, currentBidder, data, updateData, setUploadMod
         <p className="text-slate-500 font-medium max-w-md mb-8">
           Upload technical bids, financial statements, and compliance certificates for evaluation.
         </p>
-        <button 
-          className="bg-[#003366] dark:bg-[#FF9933] text-white dark:text-[#003366] px-8 py-4 text-xs font-black uppercase tracking-[0.2em] hover:bg-[#002244] dark:hover:bg-[#FF9933]/80 transition-all shadow-sm"
+        <button
+          className="bg-[#003366] dark:bg-[#FF9933] text-white px-8 py-4 text-xs font-black uppercase tracking-widest hover:bg-[#002244] dark:hover:bg-[#e68a2e] transition-all shadow-sm rounded-md flex items-center gap-2"
           onClick={() => setUploadModalConfig({ type: 'bidder', targetId: currentBidder.id })}
         >
-          + Add Documents
+          <Plus className="w-4 h-4" /> Add Documents
         </button>
       </div>
     );
@@ -937,11 +921,11 @@ const BidderView = ({ currentFile, currentBidder, data, updateData, setUploadMod
               {currentBidder.docs.length} Documents • Evaluation Complete
             </p>
           </div>
-          <button 
-            className="bg-white dark:bg-slate-800 border-2 border-[#003366] dark:border-[#FF9933] text-[#003366] dark:text-[#FF9933] px-6 py-3 text-[10px] font-black uppercase tracking-widest hover:bg-[#003366] dark:hover:bg-[#FF9933] hover:text-white dark:hover:text-[#003366] transition-all shadow-sm flex items-center gap-2"
+          <button
+            className="bg-white dark:bg-slate-800 border-2 border-[#003366] dark:border-[#FF9933] text-[#003366] dark:text-[#FF9933] px-6 py-3 text-xs font-black uppercase tracking-widest hover:bg-[#003366] dark:hover:bg-[#FF9933] hover:text-white dark:hover:text-white transition-all shadow-sm flex items-center gap-2 rounded-md"
             onClick={() => setUploadModalConfig({ type: 'bidder', targetId: currentBidder.id })}
           >
-            <Plus className="w-3 h-3" /> Add Docs
+            <Plus className="w-4 h-4" /> Add Docs
           </button>
         </div>
 
@@ -963,7 +947,7 @@ const BidderView = ({ currentFile, currentBidder, data, updateData, setUploadMod
            </h3>
            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
              {currentBidder.docs.map((doc: any) => (
-               <div key={doc.id} className="border border-slate-200 dark:border-slate-800 p-4 flex items-center justify-between group bg-white dark:bg-slate-900 hover:border-[#003366] dark:hover:border-[#FF9933] hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer" onClick={() => setPreviewDoc(doc)}>
+               <div key={doc.id} className="border border-slate-200 dark:border-slate-800 p-4 flex items-center justify-between group bg-white dark:bg-slate-900 hover:border-[#003366] dark:hover:border-[#FF9933] hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer rounded-md" onClick={() => setPreviewDoc(doc)}>
                  <div className="flex items-center gap-3 overflow-hidden">
                    {getDocIcon(doc.type)}
                    <div className="truncate">
@@ -1048,7 +1032,7 @@ const BidderView = ({ currentFile, currentBidder, data, updateData, setUploadMod
           <h3 className="text-sm font-black text-[#003366] dark:text-white uppercase tracking-[0.2em] mb-6">
             Risk Assessment
           </h3>
-          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-6 shadow-sm rounded-lg">
             <div className="flex justify-between items-end mb-2">
               <span className="text-xs font-black text-slate-600 dark:text-slate-400 uppercase tracking-widest">Overall Risk Profile</span>
               <span className={`text-sm font-black uppercase tracking-widest ${res.overallVerdict === 'Clearly Eligible' ? 'text-green-600' : res.overallVerdict === 'Clearly Not Eligible' ? 'text-red-600' : 'text-amber-600'}`}>
@@ -1230,7 +1214,7 @@ const CreateFileModal = ({ isCreateFileModalOpen, setIsCreateFileModalOpen, hand
   
   return (
     <div className="fixed inset-0 bg-black/50 z-[50] flex items-center justify-center p-4 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
-      <div className="bg-white dark:bg-slate-900 w-full max-w-md shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-[scaleIn_0.2s_ease-out]">
+      <div className="bg-white dark:bg-slate-900 w-full max-w-md shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-[scaleIn_0.2s_ease-out] rounded-lg">
         <div className="bg-[#003366] dark:bg-[#001122] text-white px-6 py-4 flex justify-between items-center border-b border-[#FF9933]/30">
           <h3 className="text-sm font-black uppercase tracking-widest">Create New File</h3>
           <button onClick={() => setIsCreateFileModalOpen(false)} className="text-white/50 hover:text-white"><X className="w-5 h-5"/></button>
@@ -1247,14 +1231,14 @@ const CreateFileModal = ({ isCreateFileModalOpen, setIsCreateFileModalOpen, hand
             className="w-full bg-white dark:bg-slate-800 border-2 border-slate-200 dark:border-slate-700 p-3 text-sm text-[#333] dark:text-slate-200 focus:outline-none focus:border-[#003366] dark:focus:border-[#FF9933] mb-8"
           />
           <div className="flex justify-end gap-4">
-            <button 
-              className="px-6 py-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+            <button
+              className="px-6 py-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors rounded-md"
               onClick={() => setIsCreateFileModalOpen(false)}
             >
               Cancel
             </button>
-            <button 
-              className="bg-[#003366] dark:bg-[#FF9933] text-white dark:text-[#003366] px-8 py-3 text-xs font-black uppercase tracking-widest disabled:opacity-50 hover:bg-[#002244] dark:hover:bg-[#FF9933]/80 transition-all"
+            <button
+              className="bg-[#003366] dark:bg-[#FF9933] text-white dark:text-[#003366] px-8 py-3 text-xs font-black uppercase tracking-widest disabled:opacity-50 hover:bg-[#002244] dark:hover:bg-[#FF9933]/80 transition-all rounded-md"
               disabled={!name.trim()}
               onClick={() => handleCreateFile(name.trim())}
             >
@@ -1456,7 +1440,7 @@ const UploadModal = ({ uploadModalConfig, setUploadModalConfig, currentFile, upd
 
   return (
     <div className="fixed inset-0 bg-black/50 z-[50] flex items-center justify-center p-4 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
-      <div className="bg-white dark:bg-slate-900 w-full max-w-2xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-[scaleIn_0.2s_ease-out] flex flex-col max-h-[90vh]">
+      <div className="bg-white dark:bg-slate-900 w-full max-w-2xl shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-[scaleIn_0.2s_ease-out] flex flex-col max-h-[90vh] rounded-lg">
         <div className="bg-[#003366] dark:bg-[#001122] text-white px-6 py-4 flex justify-between items-center flex-shrink-0 border-b border-[#FF9933]/30">
           <h3 className="text-sm font-black uppercase tracking-widest">
             Add {isTender ? 'Tender' : 'Bidder'} Documents
@@ -1498,9 +1482,9 @@ const UploadModal = ({ uploadModalConfig, setUploadModalConfig, currentFile, upd
             </div>
           )}
         </div>
-        <div className="p-6 border-t border-slate-100 dark:border-slate-800 flex justify-end gap-4 flex-shrink-0 bg-slate-50/50 dark:bg-slate-900/50">
-          <button className="px-6 py-3 text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-widest hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors" onClick={() => setUploadModalConfig(null)}>Cancel</button>
-          <button className="bg-[#003366] dark:bg-[#FF9933] text-white dark:text-[#003366] px-8 py-3 text-xs font-black uppercase tracking-widest disabled:opacity-50 hover:bg-[#002244] dark:hover:bg-[#FF9933]/90 transition-all shadow-lg border border-transparent dark:border-[#FF9933]/20" disabled={selectedFiles.length === 0} onClick={handleUpload}>Upload Documents</button>
+        <div className="p-6 border-t border-slate-100 dark:border-slate-700 flex justify-end gap-4 flex-shrink-0 bg-slate-50/50 dark:bg-slate-900/50">
+          <button className="px-6 py-3 text-xs font-bold text-slate-600 dark:text-slate-300 uppercase tracking-widest hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors rounded-md" onClick={() => setUploadModalConfig(null)}>Cancel</button>
+          <button className="bg-[#003366] dark:bg-[#FF9933] text-white px-8 py-3 text-xs font-black uppercase tracking-widest disabled:opacity-50 hover:bg-[#002244] dark:hover:bg-[#e68a2e] transition-all shadow-lg rounded-md" disabled={selectedFiles.length === 0} onClick={handleUpload}>Upload Documents</button>
         </div>
       </div>
     </div>
@@ -1512,7 +1496,7 @@ const CreateBidderModal = ({ isCreateBidderModalOpen, setIsCreateBidderModalOpen
   const [name, setName] = useState('');
   return (
     <div className="fixed inset-0 bg-black/50 z-[50] flex items-center justify-center p-4 backdrop-blur-sm animate-[fadeIn_0.2s_ease-out]">
-      <div className="bg-white dark:bg-slate-900 w-full max-w-md shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-[scaleIn_0.2s_ease-out]">
+      <div className="bg-white dark:bg-slate-900 w-full max-w-md shadow-xl border border-slate-200 dark:border-slate-800 overflow-hidden animate-[scaleIn_0.2s_ease-out] rounded-lg">
         <div className="bg-[#003366] dark:bg-[#001122] text-white px-6 py-4 flex justify-between items-center border-b border-[#FF9933]/30">
           <h3 className="text-sm font-black uppercase tracking-widest">New Bidder Organization</h3>
           <button onClick={() => setIsCreateBidderModalOpen(false)} className="text-white/50 hover:text-white"><X className="w-5 h-5"/></button>
@@ -1521,8 +1505,8 @@ const CreateBidderModal = ({ isCreateBidderModalOpen, setIsCreateBidderModalOpen
           <label className="block text-xs font-black text-[#003366] uppercase tracking-widest mb-2">Organization / Firm Name</label>
           <input autoFocus type="text" value={name} onChange={e => setName(e.target.value)} onKeyDown={e => e.key === 'Enter' && name.trim() && handleCreateBidder(name.trim())} placeholder="e.g., Bharat Dynamics Ltd." className="w-full border-2 border-slate-200 p-3 text-sm focus:outline-none focus:border-[#003366] mb-8" />
           <div className="flex justify-end gap-4">
-            <button className="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-widest hover:bg-slate-50" onClick={() => setIsCreateBidderModalOpen(false)}>Cancel</button>
-            <button className="bg-[#003366] text-white px-8 py-3 text-xs font-black uppercase tracking-widest disabled:opacity-50 hover:bg-[#002244]" disabled={!name.trim()} onClick={() => handleCreateBidder(name.trim())}>Register Bidder</button>
+            <button className="px-6 py-3 text-xs font-bold text-slate-500 uppercase tracking-widest hover:bg-slate-50 rounded-md" onClick={() => setIsCreateBidderModalOpen(false)}>Cancel</button>
+            <button className="bg-[#003366] text-white px-8 py-3 text-xs font-black uppercase tracking-widest disabled:opacity-50 hover:bg-[#002244] rounded-md" disabled={!name.trim()} onClick={() => handleCreateBidder(name.trim())}>Register Bidder</button>
           </div>
         </div>
       </div>
@@ -1530,51 +1514,54 @@ const CreateBidderModal = ({ isCreateBidderModalOpen, setIsCreateBidderModalOpen
   );
 };
 
-const Shell = ({ children, data, updateData, setCurrentFileId, setCurrentBidderId }: { 
-  children: React.ReactNode, 
-  data: AppData, 
-  updateData: (updater: (prev: AppData) => AppData) => void,
-  setCurrentFileId: (id: string | null) => void,
-  setCurrentBidderId: (id: string | null) => void
-}) => (
-  <div className="h-screen overflow-hidden flex flex-col bg-slate-50 dark:bg-slate-950 font-sans text-[#333] dark:text-slate-200 relative">
-    <DotPattern
-      className={cn(
-        "[mask-image:radial-gradient(1200px_circle_at_center,white,transparent)] opacity-40 dark:opacity-20",
-        "fixed inset-0 w-full h-full"
-      )}
-    />
-    <div className="flex h-[5px] w-full flex-shrink-0 relative z-20">
-      <div className="bg-[#FF9933] flex-1" />
-      <div className="bg-[#FFFFFF] flex-1 shadow-[0_0_10px_rgba(255,255,255,0.1)]" />
-      <div className="bg-[#138808] flex-1" />
-    </div>
-    <header className="bg-[#003366] dark:bg-[#001122] text-white px-6 py-4 flex items-center justify-between border-b-2 border-[#FF9933] flex-shrink-0 relative z-10">
-      <div className="flex items-center gap-4 cursor-pointer" onClick={() => { setCurrentFileId(null); setCurrentBidderId(null); }}>
-        <div className="w-8 h-8 bg-white text-[#003366] flex items-center justify-center font-black text-lg border border-[#FF9933]">
-          N
+const DashboardLayout = ({ children, data, updateData, setCurrentFileId, setCurrentBidderId }: any) => (
+  <div className="h-screen flex flex-col bg-slate-50 dark:bg-zinc-950 overflow-hidden font-sans">
+    {/* ─── Top Bar ─── */}
+    <div className="bg-slate-100 dark:bg-zinc-900 text-[#003366] dark:text-slate-300 py-1.5 border-b border-slate-200 dark:border-zinc-800 flex-shrink-0">
+      <div className="px-10 flex justify-between items-center">
+        <span className="text-xs font-medium tracking-tight text-slate-500 dark:text-slate-400">
+          Official Digital Portal of NirnayAI • Government of India
+        </span>
+        <div className="flex items-center gap-4 text-xs font-medium text-slate-500 dark:text-slate-400">
+          <Link href="#" className="hover:text-[#003366] dark:hover:text-[#FF9933] transition-colors duration-200">Screen Reader Access</Link>
+          <div className="flex items-center gap-2">
+            <button className="text-[#003366] dark:text-[#FF9933] font-semibold">English</button>
+            <span className="text-slate-300 dark:text-zinc-600">|</span>
+            <button className="hover:text-[#003366] dark:hover:text-[#FF9933] transition-colors duration-200">हिंदी</button>
+          </div>
         </div>
-        <h1 className="text-xl font-black tracking-tighter uppercase">NirnayAI</h1>
       </div>
-      <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2 mr-4 bg-black/20 px-3 py-1.5 border border-[#FF9933]/50">
-          <span className="text-[10px] font-bold text-white/70 uppercase tracking-widest">Test Mode</span>
-          <button 
-            className={`w-8 h-4 rounded-full relative transition-colors ${data.isTestMode ? 'bg-[#FF9933]' : 'bg-slate-500'}`}
-            onClick={() => updateData(prev => ({ ...prev, isTestMode: !prev.isTestMode }))}
-          >
-            <div className={`w-3 h-3 bg-white rounded-full absolute top-0.5 transition-all ${data.isTestMode ? 'left-4' : 'left-0.5'}`} />
-          </button>
+    </div>
+
+    {/* ─── Header ─── */}
+    <header className="py-3 bg-white dark:bg-zinc-950 border-b border-slate-200 dark:border-zinc-800 flex-shrink-0 relative z-10">
+      <div className="px-10 flex justify-between items-center">
+        <div className="flex items-center gap-5 cursor-pointer" onClick={() => { setCurrentFileId(null); setCurrentBidderId(null); }}>
+          <div className="flex items-center gap-3">
+            <img src="/logo/Ashok_Emblem_svg.svg" alt="Emblem of India" className="h-10 w-auto dark:brightness-0 dark:invert" />
+            <img src="/logo/Central_Reserve_Police_Force_emblem.svg" alt="CRPF Emblem" className="h-10 w-auto" />
+          </div>
+          <div className="border-l border-slate-200 dark:border-zinc-700 pl-5">
+            <h1 className="text-2xl font-semibold text-[#003366] dark:text-white tracking-tight">
+              NirnayAI
+            </h1>
+            <p className="text-xs font-medium text-slate-400 dark:text-zinc-400 mt-0.5">
+              Central Reserve Police Force • MHA
+            </p>
+          </div>
         </div>
-        <div className="mr-2">
+
+        <div className="flex items-center gap-4">
           <AnimatedThemeToggler variant="circle" duration={500} className="p-2 rounded-md hover:bg-slate-100 dark:hover:bg-zinc-800 transition-colors" />
-        </div>
-        <div className="text-right hidden sm:block">
-          <div className="text-xs font-bold tracking-widest uppercase">Evaluator User</div>
-          <div className="text-[10px] text-white/70 tracking-widest uppercase">CRPF • MHA</div>
-        </div>
-        <div className="flex items-center justify-center ml-2">
-          <UserButton appearance={{ elements: { userButtonAvatarBox: "w-10 h-10 rounded-none border border-white/20" } }} />
+
+          <div className="text-right hidden sm:block pl-4 border-l border-slate-200 dark:border-zinc-700">
+            <div className="text-xs font-bold text-slate-700 dark:text-zinc-200 tracking-widest uppercase">Evaluator User</div>
+            <div className="text-[10px] text-slate-500 dark:text-zinc-500 tracking-widest uppercase">CRPF • MHA</div>
+          </div>
+
+          <div className="flex items-center justify-center">
+            <UserButton appearance={{ elements: { userButtonAvatarBox: "w-10 h-10 rounded-md border border-slate-200 dark:border-zinc-700" } }} />
+          </div>
         </div>
       </div>
     </header>
@@ -1591,20 +1578,20 @@ const HomeGrid = ({ data, setIsCreateFileModalOpen, setCurrentFileId, setCurrent
         Recent Files
       </h2>
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-        <div 
-          className="bg-white dark:bg-slate-900 border-2 border-dashed border-slate-300 dark:border-slate-700 p-6 flex flex-col items-center justify-center h-64 cursor-pointer hover:border-[#003366] dark:hover:border-[#FF9933] hover:bg-slate-50 dark:hover:bg-slate-800 transition-all group"
+        <div
+          className="bg-white dark:bg-slate-900 border-2 border-dashed border-slate-300 dark:border-slate-700 p-6 flex flex-col items-center justify-center h-64 cursor-pointer hover:border-[#003366] dark:hover:border-[#FF9933] hover:bg-slate-50 dark:hover:bg-slate-800 transition-all group rounded-lg"
           onClick={() => setIsCreateFileModalOpen(true)}
         >
-          <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 flex items-center justify-center group-hover:bg-[#003366] dark:group-hover:bg-[#FF9933] group-hover:text-white transition-all text-[#003366] dark:text-slate-400 mb-4">
+          <div className="w-12 h-12 bg-slate-100 dark:bg-slate-800 rounded-md flex items-center justify-center group-hover:bg-[#003366] dark:group-hover:bg-[#FF9933] group-hover:text-white transition-all text-[#003366] dark:text-slate-400 mb-4">
             <Plus className="w-6 h-6" />
           </div>
           <span className="text-sm font-bold text-[#003366] dark:text-slate-300 uppercase tracking-wider">Create new File</span>
         </div>
 
         {data.files.map((file: any) => (
-          <div 
+          <div
             key={file.id}
-            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 flex flex-col justify-between h-64 cursor-pointer hover:border-[#003366] dark:hover:border-[#FF9933] hover:bg-slate-50 dark:hover:bg-slate-800 transition-all relative group"
+            className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 p-8 flex flex-col justify-between h-64 cursor-pointer hover:border-[#003366] dark:hover:border-[#FF9933] hover:bg-slate-50 dark:hover:bg-slate-800 transition-all relative group rounded-lg"
             onClick={() => { setCurrentFileId(file.id); setCurrentBidderId(null); }}
           >
             <div>
@@ -1623,8 +1610,8 @@ const HomeGrid = ({ data, setIsCreateFileModalOpen, setCurrentFileId, setCurrent
             </div>
             <div className="text-xs text-slate-500 dark:text-slate-400 font-medium space-y-1">
               <div className="mb-2">
-                {file.tenderStatus === 'ready' && <span className="bg-green-100 text-green-800 text-[9px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider">✓ Ready for Eval</span>}
-                {file.tenderStatus === 'clarifying' && <span className="bg-amber-100 text-amber-800 text-[9px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider">⚠ Action Required</span>}
+                {file.tenderStatus === 'ready' && <span className="bg-green-100 dark:bg-green-900/60 text-green-800 dark:text-green-300 text-[9px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Ready for Eval</span>}
+                {file.tenderStatus === 'clarifying' && <span className="bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300 text-[9px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider flex items-center gap-1"><AlertCircle className="w-3 h-3" /> Action Required</span>}
               </div>
               <div>Created: {new Date(file.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</div>
               <div className="flex items-center gap-3">
@@ -1648,10 +1635,10 @@ const getDocIcon = (type: string) => {
 
 const getStatusChip = (status: FileStatus) => {
   switch (status) {
-    case 'complete': return <span className="bg-green-100 text-green-800 text-[9px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider">Complete</span>;
-    case 'scanning': return <span className="bg-amber-100 text-amber-800 text-[9px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider flex items-center gap-1"><span className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse"></span>Scanning</span>;
-    case 'failed': return <span className="bg-red-100 text-red-800 text-[9px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider">Failed</span>;
-    default: return <span className="bg-slate-100 text-slate-600 text-[9px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider">Queued</span>;
+    case 'complete': return <span className="bg-green-100 dark:bg-green-900/60 text-green-800 dark:text-green-300 text-[9px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Complete</span>;
+    case 'scanning': return <span className="bg-amber-100 dark:bg-amber-900/60 text-amber-800 dark:text-amber-300 text-[9px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider flex items-center gap-1"><Loader2 className="w-3 h-3 animate-spin" /> Scanning</span>;
+    case 'failed': return <span className="bg-red-100 dark:bg-red-900/60 text-red-800 dark:text-red-300 text-[9px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider flex items-center gap-1"><XCircle className="w-3 h-3" /> Failed</span>;
+    default: return <span className="bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 text-[9px] font-black uppercase px-2 py-0.5 rounded-full tracking-wider flex items-center gap-1"><Clock className="w-3 h-3" /> Queued</span>;
   }
 };
 
@@ -1682,7 +1669,7 @@ const WorkspaceSidebar = ({ currentFile, currentBidderId, setCurrentFileId, setC
             <div className="text-xs text-slate-400 dark:text-slate-600 italic py-2 text-center">No tender docs yet.</div>
           ) : (
             currentFile.tenderDocs.map((doc: any) => (
-              <div key={doc.id} className="flex items-center justify-between p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-[#003366] dark:hover:border-[#FF9933] hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer group" onClick={() => setCurrentBidderId(null)}>
+              <div key={doc.id} className="flex items-center justify-between p-3 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-[#003366] dark:hover:border-[#FF9933] hover:bg-slate-50 dark:hover:bg-slate-800 transition-all cursor-pointer group rounded-md" onClick={() => setCurrentBidderId(null)}>
                 <div className="flex items-center gap-2 min-w-0">
                   {getDocIcon(doc.type)}
                   <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 truncate" title={doc.name}>{doc.name}</span>
@@ -1700,11 +1687,11 @@ const WorkspaceSidebar = ({ currentFile, currentBidderId, setCurrentFileId, setC
           )}
         </div>
         
-        <button 
-          className="w-full py-3 border-2 border-dashed border-slate-300 dark:border-slate-800 text-[10px] font-black text-[#003366] dark:text-[#FF9933] uppercase tracking-widest hover:border-[#003366] dark:hover:border-[#FF9933] hover:bg-white dark:hover:bg-slate-900 transition-all flex items-center justify-center gap-2 active:scale-[0.98]"
+        <button
+          className="w-full py-3 border-2 border-dashed border-slate-300 dark:border-slate-800 text-xs font-black text-[#003366] dark:text-[#FF9933] uppercase tracking-widest hover:border-[#003366] dark:hover:border-[#FF9933] hover:bg-white dark:hover:bg-slate-900 transition-all flex items-center justify-center gap-2 active:scale-[0.98] rounded-md"
           onClick={() => setUploadModalConfig({ type: 'tender', targetId: currentFile.id })}
         >
-          <Plus className="w-3.5 h-3.5" /> Add Tender Docs
+          <Plus className="w-4 h-4" /> Add Tender Docs
         </button>
       </div>
 
@@ -1747,8 +1734,8 @@ const WorkspaceSidebar = ({ currentFile, currentBidderId, setCurrentFileId, setC
           )}
         </div>
 
-        <button 
-          className="w-full py-3 border-2 border-dashed border-slate-300 dark:border-slate-800 text-[10px] font-black text-[#003366] dark:text-[#FF9933] uppercase tracking-widest hover:border-[#003366] dark:hover:border-[#FF9933] hover:bg-white dark:hover:bg-slate-900 transition-all flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-30"
+        <button
+          className="w-full py-3 border-2 border-dashed border-slate-300 dark:border-slate-800 text-xs font-black text-[#003366] dark:text-[#FF9933] uppercase tracking-widest hover:border-[#003366] dark:hover:border-[#FF9933] hover:bg-white dark:hover:bg-slate-900 transition-all flex items-center justify-center gap-2 active:scale-[0.98] disabled:opacity-30 rounded-md"
           onClick={() => setIsCreateBidderModalOpen(true)}
           disabled={!isTenderReady}
         >
@@ -1868,7 +1855,7 @@ export default function NirnayAI() {
   useEffect(() => {
     import('@/lib/api-client').then(api => {
       api.fetchWorkspaces().then((workspaces: any) => {
-        setData({ files: workspaces, isTestMode: false });
+        setData({ files: workspaces });
         setIsLoaded(true);
       }).catch(e => {
         console.error("Failed to load workspaces", e);
@@ -1953,7 +1940,7 @@ export default function NirnayAI() {
         * { scrollbar-width: thin; scrollbar-color: #cbd5e1 transparent; }
         .dark * { scrollbar-color: #1e293b transparent; }
       `}} />
-      <Shell 
+      <DashboardLayout 
         data={data} 
         updateData={updateData} 
         setCurrentFileId={setCurrentFileId} 
@@ -1999,7 +1986,7 @@ export default function NirnayAI() {
             <WorkspaceRightPanel currentFile={currentFile} />
           </>
         )}
-      </Shell>
+      </DashboardLayout>
       
       <CreateFileModal 
         isCreateFileModalOpen={isCreateFileModalOpen} 
